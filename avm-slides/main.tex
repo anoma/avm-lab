@@ -1,0 +1,1380 @@
+%----------------------------------------------------------------------------------------
+%    PACKAGES AND THEMES
+%----------------------------------------------------------------------------------------
+
+\documentclass[handout,aspectratio=169,xcolor=dvipsnames,10pt]{beamer}
+\usetheme{SimplePlus}
+
+\usepackage{hyperref}
+\usepackage{graphicx} % Allows including images
+\usepackage{booktabs} % Allows the use of \toprule, \midrule and \bottomrule in
+\usepackage{xcolor}
+\definecolor{lightblue}{rgb}{0.68, 0.85, 0.9}
+\definecolor{junglegreen}{rgb}{0.16, 0.67, 0.53}
+\definecolor{dodgerblue}{rgb}{0.12, 0.56, 1.0}
+\definecolor{nicered}{rgb}{0.9, 0.17, 0.31}
+\definecolor{darkblue}{rgb}{0.0, 0.48, 0.65}
+
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,shapes,arrows,fit,calc,backgrounds,decorations.pathreplacing}
+
+% Unified TikZ styles
+\tikzset{
+  >={Stealth[length=5pt]},
+  object/.style={circle,draw,thick,fill=lightblue,minimum size=10mm,font=\small},
+  machine/.style={rectangle,draw,thick,rounded corners=4pt,minimum width=4.2cm,minimum height=3cm,fill=gray!5,dashed},
+  controller/.style={rectangle,draw,thick,rounded corners=2pt,minimum width=3.8cm,minimum height=2.4cm,fill=gray!10},
+  edge/.style={->,thick,draw=darkblue},
+  msg/.style={edge,draw=dodgerblue},
+  resp/.style={edge,draw=junglegreen},
+  state/.style={rectangle,draw,thick,rounded corners=2pt,minimum width=2.6cm,minimum height=1cm},
+  final/.style={state,fill=junglegreen!30,minimum width=2.4cm,minimum height=0.9cm},
+  abort/.style={state,fill=nicered!25,minimum width=2.4cm,minimum height=0.9cm},
+  event/.style={rectangle,fill=junglegreen!60,draw,thick,rounded corners=2pt,minimum width=2cm,minimum height=0.8cm},
+  result/.style={rectangle,fill=dodgerblue!60,draw,thick,rounded corners=2pt,minimum width=1.2cm,minimum height=0.8cm},
+  silent/.style={circle,fill=gray!30,draw,thick,minimum size=6mm},
+  brace/.style={decorate,decoration={brace,amplitude=8pt}}
+}
+\usepackage{eso-pic}
+\usepackage{transparent}
+
+% Bibliography
+\usepackage[numbers,sort&compress]{natbib}
+\bibliographystyle{alpha}
+
+% Font configuration for code (with fallback)
+\usepackage{fontspec}
+\IfFontExistsTF{PragmataPro Mono}{%
+  \setmonofont{PragmataPro Mono}[Scale=1.0,Contextuals=Alternate]%
+}{%
+  \setmonofont{Inconsolata}[Scale=0.95]%
+}
+
+% Code listings for Agda
+\usepackage{listings}
+% Light theme code highlighting for listings
+\definecolor{codebg}{RGB}{248,249,250}
+\definecolor{codeframe}{gray}{0.85}
+\definecolor{codekw}{rgb}{0.00,0.28,0.45}   % dark blue
+\definecolor{codecm}{rgb}{0.38,0.38,0.38}   % mid gray
+\definecolor{codestr}{rgb}{0.55,0.00,0.08}  % deep red
+\definecolor{codeid}{rgb}{0.10,0.35,0.20}   % deep green (for emph)
+
+\lstdefinestyle{lightcode}{
+  language=Haskell,
+  basicstyle=\ttfamily\small,
+  columns=flexible,
+  breaklines=true,
+  mathescape=true,
+  escapeinside={(*}{*)},
+  showstringspaces=false,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  frameround=fftt,
+  framesep=3pt,
+  xleftmargin=0.5em,
+  xrightmargin=0.5em,
+  keywordstyle=\color{codekw}\bfseries,
+  commentstyle=\color{codecm}\itshape,
+  stringstyle=\color{codestr},
+  % Enrich Haskell with Agda-ish constructs
+  morekeywords={record,field,Set,module,open,import,with,let,in,do,if,then,else,case,of,return,data,where},
+  % Emphasize ISA operations
+  emph={beginTx,commitTx,abortTx,call,self,input,scry,reflect,teleport,transferObject,createObj,destroyObj,receive,sender,history,getCurrentMachine,getMachine,moveObject,fetch,freeze,getCurrentController,getController,newVar,narrow,post,label,choose,require,reifyContext,reifyTxState,reifyConstraints,scryMeta,scryDeep},
+  emphstyle=\color{codeid}\bfseries,
+  literate={→}{$\to$}1 {∀}{$\forall$}1 {λ}{$\lambda$}1 {≡}{$\equiv$}1 {⊤}{$\top$}1 {⊕}{$\oplus$}1
+}
+
+\lstset{style=lightcode}
+
+% For checkmarks and symbols in tables
+\usepackage{amssymb}
+\usepackage{pifont}
+\newcommand{\cmark}{\ding{51}}
+\newcommand{\xmark}{\ding{55}}
+
+%----------------------------------------------------------------------------------------
+%    TITLE PAGE
+%----------------------------------------------------------------------------------------
+
+\title{AVM: Anoma Virtual Machine}
+\subtitle{Layered Instruction Set Architecture for Distributed Objects}
+\author{\textbf{Jonathan Prieto-Cubides}, Tobias Heindel, Chris Goes, ...}
+\institute{Anoma Research — Heliax AG}
+\date{\today}
+   % Date, can be changed to a custom date
+
+%----------------------------------------------------------------------------------------
+%    PRESENTATION SLIDES
+%----------------------------------------------------------------------------------------
+
+% (Per-section outline disabled for a cleaner flow)
+
+\begin{document}
+
+\begin{frame}[fragile]
+  \titlepage
+\end{frame}
+
+%----------------------------------------------------------------------------------------
+%    PART I: MOTIVATION & CONTEXT
+%----------------------------------------------------------------------------------------
+
+\section{Motivation \& Context}
+
+\begin{frame}{Runtime vs VM vs OS Basics}
+
+\begin{itemize}
+  \item \textbf{Runtime system:} Library + services that let programs run; wraps what the VM needs (support code, services) and can grow into a full programming environment.
+  \item \textbf{Virtual machine:} Software abstraction of a machine defining an application's runtime environment; \(\mathsf{VM} = \text{abstract execution model} + \text{bytecode ISA} + \text{formal operational semantics}\).
+  \item \textbf{OS vs user-space VM:} OS is a VM for hardware (processes, threads, files) and exports syscalls; user-space VMs expose their own API (IPC, objects, storage) atop the OS.
+  \item \textbf{Notes:} Address space bounds what threads in a process can access; user-space VMs have a long history (e.g., Smalltalk compiler + interpreter).
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+
+\begin{frame}{The Design Challenge}
+
+\textbf{Goal:} Machine-checked formal semantics for distributed transactional objects
+
+\vspace{1em}
+
+\textbf{Three fundamental tensions:}
+
+\begin{enumerate}
+  \item \textcolor{nicered}{Distribution vs. Consistency} \\
+  {\small Objects on different controllers—how to maintain coherence?}
+
+  \item \textcolor{nicered}{Safety vs. Expressiveness} \\
+  {\small Be well-informed about potential unsafe operations while staying flexible}
+
+  \item \textcolor{nicered}{Parametricity vs. Reflection} \\
+  {\small Abstract object model vs. deep inspection needs}
+\end{enumerate}
+
+\vspace{1em}
+
+\textbf{Our approach:} Layered ISA + interaction trees + parametric design
+
+\end{frame}
+
+%------------------------------------------------
+
+\begin{frame}{What is the AVM?}
+
+\begin{columns}[T]
+\column{0.52\textwidth}
+
+The \textbf{Anoma Virtual Machine} is:
+
+\begin{itemize}
+  \item \textbf{Message-driven objects}
+  \begin{itemize}\small
+    \item Not functions, not actors
+    \item Process message sequences
+  \end{itemize}
+
+  \vspace{0.3em}
+
+  \item \textbf{Transactional semantics}
+  \begin{itemize}\small
+    \item Serializable snapshot isolation
+    \item Single-controller atomic blocks
+  \end{itemize}
+
+  \vspace{0.3em}
+
+  \item \textbf{Two-level distribution}
+  \begin{itemize}\small
+    \item \textbf{Machines:} Physical compute nodes
+    \item \textbf{Controllers:} Logical authority domains
+    \item Objects migrate between both
+  \end{itemize}
+\end{itemize}
+
+\column{0.48\textwidth}
+\centering
+
+\begin{tikzpicture}[node distance=1cm,font=\small,scale=0.68,transform shape]
+  % Machine A
+  \node[machine,minimum width=3.6cm,minimum height=3cm] (ma) {};
+  \node[above=0.05cm of ma,font=\footnotesize] {Machine A};
+
+  % Machine B
+  \node[machine,minimum width=3.6cm,minimum height=3cm,below=1.2cm of ma] (mb) {};
+  \node[above=0.05cm of mb,font=\footnotesize] {Machine B};
+
+  % Controllers (small boxes representing controller objects)
+  \node[controller,minimum width=0.9cm,minimum height=0.6cm] (ca) at ([yshift=0.8cm,xshift=-0.4cm]ma.center) {};
+  \node[above=-0.05cm of ca,font=\tiny] {Ctrl A};
+  \node[controller,minimum width=0.9cm,minimum height=0.6cm] (cb) at ([yshift=0.8cm,xshift=-0.4cm]mb.center) {};
+  \node[above=-0.05cm of cb,font=\tiny] {Ctrl B};
+
+  % Objects (outside controllers, inside machines)
+  \node[object,minimum size=6mm] (oa1) at ([yshift=-0.5cm,xshift=-0.6cm]ma.center) {Obj$_1$};
+  \node[object,minimum size=6mm] (oa2) at ([yshift=-0.5cm,xshift=0.6cm]ma.center) {Obj$_2$};
+  \node[object,minimum size=6mm] (ob1) at ([yshift=-0.5cm,xshift=-0.6cm]mb.center) {Obj$_3$};
+
+  % Controller references to objects (dashed lines)
+  \draw[edge,dashed,gray,thin] (ca) -- (oa1);
+  \draw[edge,dashed,gray,thin] (ca) -- (oa2);
+  \draw[edge,dashed,gray,thin] (cb) -- (ob1);
+
+  % Message across controllers
+  \draw[msg] (oa1) to[bend right=35] node[right,font=\tiny]{call} (ob1);
+  \draw[resp] (ob1) to[bend left=35] (oa1);
+
+  % Physical move (moveObject)
+  \node[object,opacity=0.25,minimum size=6mm] (oa2ghost) at ([xshift=0.6cm,yshift=-3.2cm]oa2) {Obj$_2$};
+  \draw[edge,dashed,gray] (oa2) to[bend right=45] node[right,font=\tiny,black]{\texttt{moveObject}} (oa2ghost);
+\end{tikzpicture}
+
+\end{columns}
+
+\end{frame}
+
+%------------------------------------------------
+
+\begin{frame}[fragile]{Physical vs Logical Distribution}
+
+\begin{columns}[T]
+\column{0.48\textwidth}
+
+\textbf{Machines} (Physical layer)
+\begin{itemize}\small
+  \item Physical compute nodes (servers)
+  \item Store (local) object data and run programs
+  \item Objects have a \lstinline{machine} field in metadata
+  \item \lstinline{teleport}: Move \textit{execution context} to another machine
+  \item \lstinline{moveObject}: Move the actual* object to another machine
+\end{itemize}
+
+\vspace{0.8em}
+
+\textbf{Controllers} (Logical layer)
+\begin{itemize}\small
+  \item Logical authority domains
+  \item Order transactions for owned objects
+  \item Object metadata has \lstinline{currentController}
+  \item \lstinline{transferObject}: Change ownership, and more ...
+  % \item \texttt{freeze}: Synchronize replicas
+\end{itemize}
+
+\column{0.52\textwidth}
+\vfill
+\vspace{0.5em}
+
+\begin{center}
+\begin{tikzpicture}[node distance=1cm,font=\small,scale=0.85,transform shape]
+  % Layered boxes
+  \node[state,fill=gray!15,minimum width=5cm,minimum height=1.2cm] (phys) {Physical: \texttt{MachineId}};
+  \node[state,fill=junglegreen!25,minimum width=5cm,minimum height=1.2cm,below=0.8cm of phys] (logic) {Logical: \texttt{ControllerId}};
+
+  % Annotations
+  \node[right=0.3cm of phys,font=\scriptsize,text width=2.8cm,align=left] {
+    \texttt{teleport}\\
+    \texttt{moveObject}\\
+    \texttt{getMachine}
+  };
+  \node[right=0.3cm of logic,font=\scriptsize,text width=2.8cm,align=left] {
+    \texttt{transferObject}\\
+    \texttt{freeze}\\
+    \texttt{getController}
+  };
+
+  % Relationship
+  \draw[edge,draw=gray,<->] (phys) -- node[right,font=\tiny,black] {orthogonal} (logic);
+\end{tikzpicture}
+\end{center}
+
+\vspace{0.5em}
+
+{\footnotesize\textbf{Key insight:} Physical location (where data lives) is independent of logical authority (who controls it)}
+\vfill
+
+\end{columns}
+
+\end{frame}
+
+%------------------------------------------------
+
+
+
+%------------------------------------------------
+
+%----------------------------------------------------------------------------------------
+%    PART III: INSTRUCTION SET ARCHITECTURE
+%----------------------------------------------------------------------------------------
+
+\section{Instruction Set Architecture}
+
+\begin{frame}[fragile]{Layered Instruction Set Architecture}
+
+\begin{columns}[T]
+\column{0.48\textwidth}
+
+\begin{tikzpicture}[node distance=0.8cm,font=\small]
+  % Layer stack (5 layers)
+  \node[state,fill=lightblue,minimum width=7cm,minimum height=0.6cm] (l0) {Instr$_0$: obj + introspect + reflect + reify};
+  \node[state,fill=junglegreen!30,minimum width=7cm,minimum height=0.6cm,below of=l0] (l1) {Instr$_1$: + tx};
+  \node[state,fill=dodgerblue!30,minimum width=7cm,minimum height=0.6cm,below of=l1] (l2) {Instr$_2$: + pure};
+  \node[state,fill=gray!20,minimum width=7cm,minimum height=0.6cm,below of=l2] (l3) {Instr$_3$: + machine + controller};
+  \node[state,fill=nicered!20,minimum width=7cm,minimum height=0.6cm,below of=l3] (l4) {Instruction: + constraints};
+
+  % Inclusion arrows
+  \draw[edge,draw=gray] (l0) -- (l1);
+  \draw[edge,draw=gray] (l1) -- (l2);
+  \draw[edge,draw=gray] (l2) -- (l3);
+  \draw[edge,draw=gray] (l3) -- (l4);
+
+  % Side annotations
+  \node[right of=l0,xshift=3cm,font=\tiny,align=left] {Object + context};
+  \node[right of=l1,xshift=3cm,font=\tiny,align=left] {Transactions};
+  \node[right of=l2,xshift=3cm,font=\tiny,align=left] {Pure functions};
+  \node[right of=l3,xshift=3cm,font=\tiny,align=left] {Distribution};
+  \node[right of=l4,xshift=3cm,font=\tiny,align=left] {Constraints};
+\end{tikzpicture}
+
+\column{0.52\textwidth}
+
+\textbf{Programs are ITrees} \cite{XiaEtAl-POPL-2020-InteractionTrees}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+AVMProgram : Set → Set
+AVMProgram = ITree (Instruction Safe)
+\end{lstlisting}
+
+\vspace{0.4em}
+
+\begin{tikzpicture}[x=1cm,y=1cm,font=\small,scale=0.85,transform shape]
+  % Root event
+  \node[event,minimum width=1.6cm,minimum height=0.7cm] (call) at (0,0) {\texttt{call}};
+
+  % Branch targets
+  \node[silent,minimum size=5mm] (tau1) at (-1.8,-1.5) {$\tau$};
+  \node[result,minimum width=1cm,minimum height=0.6cm] (ret)  at (0,-1.5) {$r$};
+  \node[event,minimum width=1.4cm,minimum height=0.6cm]  (write) at (1.8,-1.5) {\texttt{beginTx}};
+
+  % Continuations
+  \node at (-1.8,-2.3) (cont1) {$\cdots$};
+  \node at (1.8,-2.3)  (cont2) {$\cdots$};
+
+  % Edges
+  \draw[edge,thick] (call) -- node[above left,font=\tiny] {Nothing} (tau1);
+  \draw[resp,thick] (call) -- node[right,font=\tiny] {Just out} (ret);
+  \draw[msg,thick]  (call) -- node[above right,font=\tiny] {Nothing} (write);
+  \draw[edge,draw=gray,dashed] (tau1) -- (cont1);
+  \draw[edge,draw=gray,dashed] (write) -- (cont2);
+\end{tikzpicture}
+
+{\scriptsize Tree branches = possible return values (e.g., \lstinline{call} returns \lstinline{Maybe Output})}
+
+\end{columns}
+
+\vspace{0.6em}
+
+\textbf{Design principle:} Layered inclusion (not horizontal composition)
+
+{\small
+\[
+  \text{Instr}_0 \subseteq \text{Instr}_1 \subseteq \text{Instr}_2 \subseteq \text{Instr}_3 \subseteq \text{Instruction}
+\]}
+
+\end{frame}
+
+%------------------------------------------------
+
+\begin{frame}[fragile]{Module Organization}
+
+\begin{center}
+\begin{tikzpicture}[node distance=1.5cm,font=\small]
+  % Three main modules
+  \node[state,fill=lightblue,minimum width=3cm,minimum height=1cm] (context) {Context};
+  \node[state,fill=junglegreen!30,minimum width=3cm,minimum height=1cm,below of=context] (instr) {Instruction};
+  \node[state,fill=dodgerblue!30,minimum width=3cm,minimum height=1cm,below of=instr] (interp) {Interpreter};
+
+  % Dependencies
+  \draw[edge] (instr) -- node[right,font=\tiny] {imports} (context);
+  \draw[edge] (interp) -- node[right,font=\tiny] {imports} (instr);
+
+  % Annotations
+  \node[right of=context,xshift=1.5cm,text width=3.5cm,font=\tiny,align=left] {
+    State, Store, ObjectMeta,\\
+    Error types, Result types
+  };
+  \node[right of=instr,xshift=1.5cm,text width=3.5cm,font=\tiny,align=left] {
+    5-layer ISA,\\
+    Safety indexing
+  };
+  \node[right of=interp,xshift=1.5cm,text width=3.5cm,font=\tiny,align=left] {
+    Operational semantics,\\
+    ITree interpreters
+  };
+\end{tikzpicture}
+\end{center}
+
+\vspace{1em}
+
+\textbf{Key abstraction:} All modules parameterized by abstract Object type
+
+\begin{itemize}
+  \item \textbf{Parametricity:} Instruction semantics cannot inspect Object internals
+  \item \textbf{Exception:} Unsafe \lstinline{scryDeep} breaks abstraction for debugging
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+
+%----------------------------------------------------------------------------------------
+%    PART IV: EXAMPLE
+%----------------------------------------------------------------------------------------
+
+\section{Complete Example}
+
+\begin{frame}[fragile]{Running Example: Atomic Transfer}
+
+\begin{columns}[T]
+\column{0.54\textwidth}
+
+\textbf{Scenario:} Transfer tokens between accounts atomically
+
+\vspace{0.5em}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+transfer : ObjectId → ObjectId → ℕ
+         → AVMProgram Bool
+transfer alice bob amount = do
+  txId ← beginTx
+
+  -- Debit Alice's account
+  r1 ← call alice (debit amount)
+
+  -- Credit Bob's account
+  r2 ← call bob (credit amount)
+
+  -- Commit if both succeed
+  case (r1 , r2) of
+    (just _ , just _) → commitTx txId
+    _                 → abortTx txId
+                        >> return false
+\end{lstlisting}
+
+\column{0.46\textwidth}
+
+\vspace{2em}
+
+\textbf{Transaction guarantees:}
+
+\vspace{0.5em}
+
+\begin{itemize}\small
+  \item \textbf{Atomicity:} Both updates happen or neither does
+
+  \vspace{0.3em}
+
+  \item \textbf{Isolation:} Changes invisible until commit
+
+  \vspace{0.3em}
+
+  \item \textbf{Consistency:} Version checking detects concurrent modifications
+
+  \vspace{0.3em}
+
+  \item \textbf{Conflict handling:} \lstinline{commitTx} returns \lstinline{false} on conflict
+\end{itemize}
+
+\vspace{1em}
+
+{\footnotesize\textbf{Execution:} Cannot handle objects from more than one controller within a transaction. However, \lstinline{transferObject} can change ownership during the transaction.}
+
+\end{columns}
+
+\end{frame}
+
+%------------------------------------------------
+
+
+%----------------------------------------------------------------------------------------
+%    PART V: CONCLUSION
+%----------------------------------------------------------------------------------------
+
+\section{Conclusion}
+
+\begin{frame}{Current WIP and Wanted}
+
+\textbf{Current WIP:}
+
+\vspace{0.5em}
+
+\begin{columns}[T]
+\column{0.48\textwidth}
+\begin{itemize}
+  \item \textbf{5-Layer ISA} \\
+  {\small Instr$_0$ → Instr$_1$ → Instr$_2$ → Instr$_3$ → Instruction}
+
+  \item \textbf{Physical/Logical separation} \\
+  {\small Machines (physical) vs Controllers (logical)}
+
+  \item \textbf{Parametric design} \\
+  {\small Abstract Object type preserves parametricity}
+\end{itemize}
+
+\column{0.48\textwidth}
+\textbf{Wanted next:}
+
+\vspace{0.2em}
+
+\begin{itemize}
+  \item \textbf{Constraint integration} \\
+  {\small Solver hookup for FD + nondet + linear constraints}
+
+  \item \textbf{Proof + tooling} \\
+  {\small Complete ITree semantics proofs and developer ergonomics}
+
+  \item \textbf{Runtime hardening} \\
+  {\small Durable runtime + interpreter modularization}
+\end{itemize}
+\end{columns}
+
+\vspace{1em}
+
+
+\end{frame}
+
+%------------------------------------------------
+
+% (Removed implementation status slide to avoid future-work/status content)
+% (Removed "Explore the Specification" slide)
+
+%----------------------------------------------------------------------------------------
+%    BONUS MATERIAL
+%----------------------------------------------------------------------------------------
+
+\section*{Bonus Material}
+
+%------------------------------------------------
+
+\begin{frame}{Bonus Slides}
+
+\begin{center}
+\Large \textbf{Additional Technical Details}
+\end{center}
+
+\vspace{1em}
+
+\begin{itemize}
+  \item Core Abstractions (state, messaging, tx semantics)
+  \item Instruction Details \& Error Stack
+  \item Result Types \& Interpreter Structure
+  \item System Model (Assumptions)
+  \item Object Ownership Transfer
+  \item Pure Instructions \& Safety-Indexed Operations
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+
+\subsection*{Core Abstractions (Bonus)}
+
+\begin{frame}[fragile]{Object Model: Abstract + Metadata}
+
+\begin{columns}[T]
+\column{0.48\textwidth}
+\textbf{Abstract Object} \\
+{\small (AVM program / Module parameter)}
+
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+module AVM.Instruction
+    (Val : Set)
+    (ObjectId : Set)
+    (MachineId : Set)
+    (ControllerId : Set)
+    (TxId : Set)
+    (ObjectBehaviour : Set)
+  where
+\end{lstlisting}
+
+
+\column{0.48\textwidth}
+\textbf{Runtime Metadata} \\
+{\small (Managed by AVM)}
+
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+record ObjectMeta : Set where
+  field
+    objectId : ObjectId
+    history : List Input
+
+    -- Physical location
+    machine : MachineId
+
+    -- Logical authority
+    creatingController : ControllerId
+    currentController : ControllerId
+\end{lstlisting}
+
+\begin{itemize}
+  \item Tracks execution history
+  \item \textbf{\lstinline{machine}:} Physical location (where)
+  \item \textbf{\lstinline{currentController}:} Logical authority (who)
+\end{itemize}
+
+\end{columns}
+
+\vspace{0.5em}
+
+\textbf{Separation:} Objects (AVM programs, immutable) vs. Metadata (mutable runtime state)
+
+\end{frame}
+
+%------------------------------------------------
+
+\begin{frame}{Local AVM Program Execution}
+
+\centering
+
+\begin{tikzpicture}[node distance=1cm,font=\small,scale=0.7,transform shape]
+  % AVM Runtime (different representation - rounded box)
+  \node[rectangle,draw,thick,fill=gray!15,rounded corners=15pt,minimum width=3cm,minimum height=2cm,align=center] (runtime) {AVM Runtime};
+  
+  % AVM Program (same shape as objects since programs are objects)
+  \node[object,minimum size=4.5cm,right=2.5cm of runtime] (program) {};
+  \node[above=0.1cm of program,font=\tiny] {AVM Program};
+  
+  % Two purple lines at the top (source code)
+  \draw[thick,draw=purple!40] ([xshift=-1.5cm,yshift=1.4cm]program.center) -- ([xshift=1.5cm,yshift=1.4cm]program.center);
+  \draw[thick,draw=purple!40] ([xshift=-1.5cm,yshift=1.0cm]program.center) -- ([xshift=1.5cm,yshift=1.0cm]program.center);
+  
+  % Pastel pink/coral block with beginTx, instructions, and commitTx
+  \node[rectangle,draw,thick,fill=pink!40,minimum width=2cm,minimum height=1.3cm,align=center,font=\tiny] 
+    (txBlock) at ([yshift=0.15cm]program.center) {
+      \texttt{beginTx}\\
+      \texttt{Call(A, B, ...)}\\
+      \texttt{---}\\
+      \texttt{commitTx}
+    };
+  
+  % Three purple lines at the bottom (source code)
+  \draw[thick,draw=purple!40] ([xshift=-1.5cm,yshift=-0.3cm]program.center) -- ([xshift=1.5cm,yshift=-0.3cm]program.center);
+  \draw[thick,draw=purple!40] ([xshift=-1.5cm,yshift=-0.7cm]program.center) -- ([xshift=1.5cm,yshift=-0.7cm]program.center);
+  \draw[thick,draw=purple!40] ([xshift=-1.5cm,yshift=-1.1cm]program.center) -- ([xshift=1.5cm,yshift=-1.1cm]program.center);
+  
+  % Objects on the right
+  \node[object,minimum size=1.2cm,right=2cm of program] (alice) {};
+  \node[above=0.1cm of alice,font=\tiny] {obj Alice};
+  \node[object,minimum size=1.2cm,above=1.2cm of alice] (bob) {};
+  \node[above=0.1cm of bob,font=\tiny] {obj Bob};
+  \node[object,minimum size=1.2cm,below=1.2cm of alice] (charle) {};
+  \node[above=0.1cm of charle,font=\tiny] {obj Charle};
+  
+  % Blue arrows from instruction lines to objects
+  \draw[msg,thick] ([xshift=1.5cm,yshift=1.4cm]program.center) to[bend left=25] node[above,font=\tiny] {} (bob);
+  \draw[msg,thick] (txBlock.east) to[bend left=15] node[above,font=\tiny] {} (alice);
+  \draw[msg,thick] ([xshift=1.5cm,yshift=-1.1cm]program.center) to[bend right=25] node[below,font=\tiny] {} (charle);
+  
+  % Context fetching on the left (above runtime)
+  \node[above=1.5cm of runtime,font=\scriptsize,align=left,text width=2.5cm] (context) {
+    \textcolor{nicered}{\textbf{To:}}\\
+    \textcolor{nicered}{Fetch all context needed}\\
+    \textcolor{nicered}{and optimisticly execute}
+  };
+  
+  % Arrow from context to transaction block (curved)
+  \draw[edge,draw=nicered,thick] (context) to[bend right=30] (txBlock.west);
+  
+  % Dashed arrow from AVM Runtime to AVM program (loading code)
+  \draw[edge,dashed,thick,draw=gray] (runtime.east) to[bend left=15] node[above,font=\tiny] {load code} (program.west);
+  
+\end{tikzpicture}
+
+\vspace{0.5em}
+
+\end{frame}
+
+%------------------------------------------------
+
+\begin{frame}[fragile]{Runtime State}
+
+\begin{columns}[T]
+\column{0.52\textwidth}
+
+\textbf{Five logical components:}
+
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+record State : Set where
+  field
+    -- 1. Physical context
+    machineId : MachineId
+    -- 2. Controller context
+    controllerId : ControllerId
+    -- 3. Persistent storage
+    store : Store
+    -- 4. Transactional overlay
+    txLog, creates, destroys, observed
+    pendingTransfers, tx
+    -- 5. Execution frame
+    self, input, sender
+    traceMode, eventCounter
+\end{lstlisting}
+
+\column{0.48\textwidth}
+
+\textbf{Store separation:}
+
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+record Store : Set where
+  field
+    objects : ObjectId → Maybe Object
+    metadata : ObjectId → Maybe ObjectMeta
+\end{lstlisting}
+
+\vspace{0.3em}
+
+\textbf{Key design:}
+
+\begin{itemize}\scriptsize
+  \item \textbf{Physical context:} Machine identity
+  \item \textbf{Controller context:} Logical authority
+  \item \textbf{Persistent storage:} Objects + metadata
+  \item \textbf{Transactional overlay:} Pending changes
+  \item \textbf{Execution frame:} \lstinline{self}, \lstinline{input}, \lstinline{sender}, trace
+\end{itemize}
+
+\end{columns}
+
+\end{frame}
+
+%------------------------------------------------
+
+\begin{frame}[fragile]{Message Passing}
+
+\begin{columns}[T]
+\column{0.45\textwidth}
+
+\textbf{The only way to interact with objects:}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+call : ObjectId → Input
+  → ObjInstruction Safe (Maybe Output)
+\end{lstlisting}
+
+\vspace{0.5em}
+
+\textbf{Behavior from full history:}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+getBehavior obj (history ++ [newInput])
+\end{lstlisting}
+
+\vspace{0.5em}
+
+\textbf{Key properties:}
+
+\begin{itemize}\scriptsize
+  \item \textbf{No hidden state:} History is the state
+  \item \textbf{Transactional:} Pending inputs until commit
+\end{itemize}
+
+\column{0.55\textwidth}
+
+\begin{center}
+\begin{tikzpicture}[node distance=1.2cm,font=\small]
+  \node[object,minimum size=12mm] (obj) {Obj};
+  \node[left of=obj,xshift=-2.2cm] (caller) {Caller};
+
+  \draw[msg] (caller) to[bend left=15] node[above,font=\scriptsize] {Input} (obj);
+  \draw[resp] (obj) to[bend left=15] node[below,font=\scriptsize] {Maybe Output} (caller);
+
+  \node[below=0.8cm of obj,font=\scriptsize] {
+    history: [in$_1$, in$_2$, in$_3$]
+  };
+\end{tikzpicture}
+\end{center}
+
+\vspace{1em}
+
+{\small\textbf{Replay semantics:} Each \lstinline{call} appends to history, behavior is recomputed from scratch on the full sequence.}
+
+\end{columns}
+
+\end{frame}
+
+%------------------------------------------------
+
+\begin{frame}[fragile]{Transactional Semantics}
+
+\begin{columns}[T]
+\column{0.45\textwidth}
+
+\textbf{Transactions within a controller}
+
+\vspace{0.2em}
+
+{\small True atomicity requires single-controller scope}
+
+\vspace{0.3em}
+
+\textbf{Three instructions:}
+
+\begin{itemize}\scriptsize
+  \item \lstinline{beginTx} — Start atomic block (returns TxId)
+  \item \lstinline{commitTx} — Persist all changes (may fail on conflict)
+  \item \lstinline{abortTx} — Discard all changes (always succeeds)
+\end{itemize}
+
+\vspace{0.3em}
+
+{\scriptsize\textbf{Controller-locality:} \lstinline{call}, \lstinline{destroyObj}, \lstinline{transferObject} target only owned objects}
+
+\column{0.55\textwidth}
+
+\begin{tikzpicture}[node distance=1.2cm,scale=0.9,transform shape]
+  % States
+  \node[state,minimum width=2.2cm,minimum height=0.7cm] (s0) {Initial State};
+  \node[state,below of=s0,minimum width=2.2cm,minimum height=0.7cm] (s1) {+ write$_1$};
+  \node[state,below of=s1,minimum width=2.2cm,minimum height=0.7cm] (s2) {+ write$_2$};
+  \node[final,below left of=s2,xshift=-1cm,yshift=-0.5cm,minimum width=2cm] (commit) {Committed};
+  \node[abort,below right of=s2,xshift=1cm,yshift=-0.5cm,minimum width=2cm] (abort) {Aborted};
+
+  % Arrows
+  \draw[msg] (s0) -- node[right,black,font=\tiny] {beginTx} (s1);
+  \draw[msg] (s1) -- node[right,black,font=\tiny] {call obj$_1$} (s2);
+  \draw[resp] (s2) -- node[above left,black,font=\tiny] {commitTx} (commit);
+  \draw[edge,draw=nicered] (s2) -- node[above right,black,font=\tiny] {abortTx} (abort);
+
+  % Overlay annotation bracket (opening to the left)
+  \draw[decorate,decoration={brace,mirror,amplitude=5pt},thick,darkblue]
+    ([xshift=2.2cm]s0.north east) -- ([xshift=2.2cm]s2.south east)
+    node[midway,right,xshift=0.2cm,text width=1.1cm,align=left,font=\tiny] {TxLog\\overlay};
+\end{tikzpicture}
+
+\end{columns}
+
+\end{frame}
+
+%------------------------------------------------
+
+\subsection*{Instruction Details (Bonus)}
+
+\begin{frame}[fragile]{Object \& Introspection Instructions (Instr$_0$)}
+
+\begin{columns}[T]
+\column{0.48\textwidth}
+
+\textbf{Object lifecycle and communication}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+data ObjInstruction : Safety → ISA where
+  createObj  : String → ObjInstruction Safe ObjectId
+  destroyObj : ObjectId → ObjInstruction Safe Bool
+  call    : ObjectId → Input
+          → ObjInstruction Safe (Maybe Output)
+  receive : ObjInstruction Safe (Maybe Input)
+\end{lstlisting}
+
+\vspace{0.3em}
+
+\textbf{Introspection} {\small (self-examination, safe)}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+data IntrospectInstruction : Safety → ISA where
+  self    : ... Safe ObjectId
+  input   : ... Safe Input
+  history : ... Safe InputSequence
+  sender  : ... Safe (Maybe ObjectId)
+  getCurrentMachine : ... Safe MachineId
+\end{lstlisting}
+
+\column{0.48\textwidth}
+
+\textbf{Reflection} {\small (examining others, unsafe)}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+data ReflectInstruction : Safety → ISA where
+  reflect  : ObjectId
+    → ReflectInstruction Unsafe (Maybe ObjectMeta)
+  scryMeta : (ObjectMeta → Bool)
+    → ReflectInstruction Unsafe (List ...)
+  scryDeep : (ObjectBehaviour → ObjectMeta → Bool)
+    → ReflectInstruction Unsafe (List ...)
+\end{lstlisting}
+
+\vspace{0.3em}
+
+\textbf{Reification} {\small (capture state as data)}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+data ReifyInstruction : Safety → ISA where
+  reifyContext : ... Safe ReifiedContext
+  reifyTxState : ... Unsafe (Maybe ReifiedTxState)
+  reifyConstraints : ... Unsafe ReifiedConstraints
+\end{lstlisting}
+
+\end{columns}
+
+\end{frame}
+
+%------------------------------------------------
+
+\begin{frame}[fragile]{Transaction Instructions (Instr$_1$)}
+
+\textbf{Atomic execution contexts}
+
+\begin{lstlisting}[basicstyle=\ttfamily\small]
+data TxInstruction : Safety → ISA where
+  beginTx  : TxInstruction Safe TxId
+  commitTx : TxId → TxInstruction Safe Bool  -- may fail on conflict
+  abortTx  : TxInstruction Safe ⊤
+\end{lstlisting}
+
+\vspace{1em}
+
+\textbf{Transaction semantics:}
+
+\begin{itemize}
+  \item \textbf{\lstinline{beginTx}:} Initializes empty overlays (\lstinline{txLog}, \lstinline{creates}, \lstinline{destroys}, \lstinline{observed})
+  \item \textbf{\lstinline{commitTx}:} Validates observed versions, applies all pending changes atomically
+  \item \textbf{\lstinline{abortTx}:} Discards all pending changes, clears overlays
+\end{itemize}
+
+\vspace{0.5em}
+
+\textbf{Conflict detection:} Read set (\lstinline{observed}) checked against current store versions
+
+\end{frame}
+
+%------------------------------------------------
+
+\begin{frame}[fragile]{Distribution Instructions (Instr$_3$)}
+
+\begin{columns}[T]
+\column{0.48\textwidth}
+
+\textbf{Machine Layer} (Physical)
+
+\vspace{0.3em}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+data MachineInstruction : Safety → ISA where
+  getMachine : ObjectId
+    → MachineInstruction Safe (Maybe MachineId)
+  teleport : MachineId
+    → MachineInstruction Safe Bool
+  moveObject : ObjectId → MachineId
+    → MachineInstruction Safe Bool
+  fetch : ObjectId
+    → MachineInstruction Safe Bool
+\end{lstlisting}
+
+\vspace{0.3em}
+
+\begin{itemize}\small
+  \item \textbf{\lstinline{fetch}:} Bring replica locally
+  \item \textbf{\lstinline{moveObject}:} Move object data
+  \item Invalid during active transactions
+\end{itemize}
+
+\column{0.48\textwidth}
+
+\textbf{Controller Layer} (Logical)
+
+\vspace{0.3em}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+data ControllerInstruction : Safety → ISA where
+  getCurrentController
+    : ControllerInstruction Safe ControllerId
+  getController : ObjectId
+    → ControllerInstruction Safe (Maybe ControllerId)
+  transferObject : ObjectId → ControllerId
+    → ControllerInstruction Safe Bool
+  freeze : ObjectId
+    → ControllerInstruction Safe Bool
+\end{lstlisting}
+
+\vspace{0.3em}
+
+\begin{itemize}\small
+  \item \textbf{\lstinline{transferObject}:} Change ownership
+  \item \textbf{\lstinline{freeze}:} Synchronize replicas
+\end{itemize}
+
+\end{columns}
+
+\end{frame}
+
+%------------------------------------------------
+
+\begin{frame}[fragile]{Constraint Programming Instructions (Full ISA)}
+
+\begin{columns}[t]
+\column{0.32\textwidth}
+
+\vspace{0.2em}
+\textbf{FD Constraints}\\
+{\scriptsize (Call-time choice)}
+
+\vspace{0.4em}
+
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+data FDInstruction : Safety → ISA where
+  newVar : List Val
+    → FDInstruction Safe VarId
+  narrow : VarId → List Val
+    → FDInstruction Safe Bool
+  post : Constraint
+    → FDInstruction Safe Bool
+  label : VarId
+    → FDInstruction Safe Val
+\end{lstlisting}
+
+\vspace{0.5em}
+
+{\scriptsize CSP-style constraint programming with incremental propagation}
+
+\column{0.32\textwidth}
+
+\vspace{0.2em}
+\textbf{Nondeterminism}\\
+{\scriptsize (Commit-time validation)}
+
+\vspace{0.4em}
+
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+data NondetInstruction : Safety → ISA where
+  choose : List Val
+    → NondetInstruction Safe Val
+  require : Bool
+    → NondetInstruction Safe ⊤
+\end{lstlisting}
+
+\vspace{0.5em}
+
+{\scriptsize Intent matching: constraints accumulate until commit, then solved externally}
+
+\column{0.32\textwidth}
+
+\vspace{0.2em}
+\textbf{Linear Constraints}\\
+{\scriptsize (Resource tracking)}
+
+\vspace{0.4em}
+
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+data LinearInstruction : Safety → ISA where
+  newLinearConstraint
+    : ... → LinearInstruction Safe ConstraintId
+  satisfyLinear
+    : ConstraintId → ...
+    → LinearInstruction Safe Bool
+\end{lstlisting}
+
+\vspace{0.5em}
+
+{\scriptsize Linear resource accounting and verification}
+
+\end{columns}
+
+\vspace{1em}
+
+\begin{center}
+{\footnotesize\textbf{Note:} These extensions support constraint-directed execution and intent matching}
+\end{center}
+
+\end{frame}
+
+%------------------------------------------------
+
+\begin{frame}[fragile]{Layered Error Types}
+
+\textbf{Error types match instruction layers:}
+
+\begin{center}
+\begin{tikzpicture}[node distance=0.5cm,font=\tiny,
+  errbox/.style={rectangle,draw,thick,rounded corners=2pt,minimum width=2.8cm,minimum height=0.5cm}]
+
+  \node[errbox,fill=nicered!20] (avm) {AVMError};
+  \node[errbox,fill=gray!20,below of=avm] (distrib) {DistribLayerError};
+  \node[errbox,fill=dodgerblue!30,below of=distrib] (pure) {PureLayerError};
+  \node[errbox,fill=junglegreen!30,below of=pure] (tx) {TxLayerError};
+  \node[errbox,fill=lightblue,below of=tx] (base) {BaseError};
+
+  \draw[edge] (distrib) -- (avm);
+  \draw[edge] (pure) -- (distrib);
+  \draw[edge] (tx) -- (pure);
+  \draw[edge] (base) -- (tx);
+
+  \node[right=0.4cm of avm,font=\scriptsize,align=left] {Instruction: + constraints};
+  \node[right=0.4cm of distrib,font=\scriptsize,align=left] {Instr$_3$: + machine + controller};
+  \node[right=0.4cm of pure,font=\scriptsize,align=left] {Instr$_2$: + pure-error};
+  \node[right=0.4cm of tx,font=\scriptsize,align=left] {Instr$_1$: + tx-error};
+  \node[right=0.4cm of base,font=\scriptsize,align=left] {Instr$_0$: obj + introspect + reflect + reify};
+\end{tikzpicture}
+\end{center}
+
+\vspace{0.5em}
+
+{\small\textbf{Key:} Each layer wraps errors from lower layers plus its own specific errors}
+
+\end{frame}
+
+%------------------------------------------------
+
+\subsection*{Execution Details (Bonus)}
+
+\begin{frame}[fragile]{Result Types and Execution}
+
+\begin{columns}[T]
+\column{0.52\textwidth}
+
+\textbf{Instruction execution returns:}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+record Success (A : Set) : Set where
+  field
+    value : A
+    state : State
+    trace : Trace
+
+data Result (A : Set) (E : Set) : Set where
+  success : Success A → Result A E
+  failure : E → Result A E
+\end{lstlisting}
+
+\column{0.48\textwidth}
+
+\textbf{Layer-specific result types:}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+BaseResult   A = Result A BaseError
+TxResult     A = Result A TxLayerError
+PureResult   A = Result A PureLayerError
+AVMResult    A = Result A AVMError
+\end{lstlisting}
+
+\vspace{0.5em}
+
+{\small\textbf{Success:} value + state + trace\\
+\textbf{Failure:} error value only}
+
+\end{columns}
+
+\end{frame}
+
+%------------------------------------------------
+
+\begin{frame}[fragile]{Interpreter Structure}
+
+\textbf{Each instruction family has an interpreter:}
+
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+executeObj        : ObjInstruction s A → State → AVMResult A
+executeIntrospect : IntrospectInstruction s A → State → AVMResult A
+executeReflect    : ReflectInstruction s A → State → AVMResult A
+executeReify      : ReifyInstruction s A → State → AVMResult A
+executeTx         : TxInstruction s A → State → AVMResult A
+executePure       : PureInstruction s A → State → AVMResult A
+\end{lstlisting}
+
+\vspace{0.5em}
+
+\textbf{Layered interpreters dispatch to instruction handlers:}
+
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+executeInstr$_0$ : Instr$_0$ s A → State → AVMResult A
+executeInstr$_0$ (Obj instr) = executeObj instr
+executeInstr$_0$ (Introspect instr) = executeIntrospect instr
+executeInstr$_0$ (Reflect instr) = executeReflect instr
+executeInstr$_0$ (Reify instr) = executeReify instr
+-- ... executeInstr$_1$, executeInstr$_2$, executeInstruction
+\end{lstlisting}
+
+\vspace{0.5em}
+
+\textbf{Program interpreters recursively process ITrees:}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+interpretAVMProgram : AVMProgram A → State → AVMResult A
+\end{lstlisting}
+
+\end{frame}
+
+%------------------------------------------------
+
+\begin{frame}{System Model \& Guarantees}
+
+\begin{columns}[T]
+\column{0.48\textwidth}
+
+\textbf{Assumptions (Environment)}
+\begin{itemize}\small
+  \item \textbf{Network:} Asynchronous, reliable, FIFO per sender-receiver
+  \item \textbf{Failures:} Crash-stop nodes (no Byzantine faults)
+  \item \textbf{Time:} No global clock
+\end{itemize}
+
+\column{0.48\textwidth}
+
+\textbf{Guarantees (AVM Model)}
+\begin{itemize}\small
+  \item \textbf{Atomicity:} Instructions are all-or-nothing; no partial visibility
+  \item \textbf{Isolation:} Per-controller Serializable Snapshot Isolation (SSI)
+  \item \textbf{Authority:} Invariant: exactly one \texttt{currentController} per object
+\end{itemize}
+
+\end{columns}
+
+\vspace{0.8em}
+
+{\footnotesize See \texttt{AVM/SystemModel.md} for complete specification of assumptions}
+
+\end{frame}
+
+%------------------------------------------------
+
+\begin{frame}[fragile]{Object Ownership Transfer}
+
+\begin{columns}[T]
+\column{0.48\textwidth}
+
+\textbf{transferObject Semantics}
+
+\vspace{0.3em}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+transferObject : ObjectId → ControllerId
+  → ControllerInstruction Safe Bool
+\end{lstlisting}
+
+\vspace{0.5em}
+
+\textbf{Execution:}
+\begin{enumerate}\small
+  \item Validate current controller has authority
+  \item Update \lstinline{currentController} in metadata
+  \item Record in pending transfers (if in \lstinline{tx})
+  \item Return success/failure
+\end{enumerate}
+
+\column{0.48\textwidth}
+
+\textbf{Key properties:}
+
+\begin{itemize}\small
+  \item \textbf{Atomic:} Single instruction
+  \item \textbf{Authorized:} Only current controller can transfer
+  \item \textbf{Transactional:} Respects \lstinline{tx} boundaries
+\end{itemize}
+
+\vspace{0.5em}
+
+\textbf{ObjectMeta changes:}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+-- Before
+currentController = controllerA
+
+-- After transferObject obj controllerB
+currentController = controllerB
+\end{lstlisting}
+
+\end{columns}
+
+\vspace{0.5em}
+
+{\footnotesize\textbf{Note:} This is a logical authority change, not a physical move (use \lstinline{moveObject} for that)}
+
+\end{frame}
+
+%------------------------------------------------
+
+\begin{frame}[fragile]{Pure Instructions (Instr$_2$)}
+
+\begin{columns}[T]
+\column{0.52\textwidth}
+\textbf{Pure Function Layer}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+data PureInstruction : Safety → ISA where
+  callPure : String → List Val
+           → PureInstruction Safe (Maybe Val)
+
+  registerPure : String → (List Val → Maybe Val)
+               → PureInstruction Unsafe Bool
+
+  updatePure : String → (List Val → Maybe Val)
+             → PureInstruction Safe Bool
+\end{lstlisting}
+
+\vspace{0.5em}
+
+\begin{itemize}\small
+  \item \textbf{\lstinline{callPure}:} Invoke registered function
+  \item \textbf{\lstinline{registerPure}:} Add new function (unsafe)
+  \item \textbf{\lstinline{updatePure}:} Modify existing function
+\end{itemize}
+
+\column{0.44\textwidth}
+
+\textbf{Design rationale:}
+
+\begin{itemize}\small
+  \item Extensible function registry
+  \item Side-effect free
+  \item \lstinline{registerPure} is unsafe because it modifies global state
+  \item \lstinline{updatePure} is safe (requires prior registration)
+\end{itemize}
+
+\vspace{0.5em}
+
+{\scriptsize Pure functions enable reusable logic without object overhead}
+
+\end{columns}
+
+\end{frame}
+
+%------------------------------------------------
+
+\begin{frame}[fragile]{Safety-Indexed Operations}
+
+\begin{columns}[T]
+\column{0.48\textwidth}
+\textcolor{dodgerblue}{\textbf{Safe}}
+\begin{itemize}
+  \item Respects encapsulation
+  \item Bounded computation
+  \item Message-passing only
+  \item Examples: \lstinline{call}, \lstinline{self}, \lstinline{reifyContext}
+\end{itemize}
+
+\column{0.48\textwidth}
+\textcolor{nicered}{\textbf{Unsafe}}
+\begin{itemize}
+  \item Breaks encapsulation
+  \item Unbounded computation
+  \item Direct metadata/object access
+  \item Examples: \lstinline{scryDeep}, \lstinline{reflect}, \lstinline{reifyTxState}
+\end{itemize}
+\end{columns}
+
+\vspace{1em}
+
+\textbf{Three related concepts:}
+\begin{itemize}
+  \item \textbf{Introspection:} Self-examination (safe) — \lstinline{self}, \lstinline{history}
+  \item \textbf{Reflection:} Examining others (unsafe) — \lstinline{reflect}, \lstinline{scryDeep}
+  \item \textbf{Reification:} Capturing state as data — \lstinline{reifyContext}, \lstinline{reifyTxState}
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+
+% \begin{frame}{References}
+% \bibliography{../specs/references/ref}
+% \end{frame}
+
+\end{document}

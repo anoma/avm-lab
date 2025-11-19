@@ -1,0 +1,53 @@
+.DS_Store
+.cache/
+page-env/
+site/
+.ipynb_checkpoints/
+.stack-work
+**/.stack-work
+.vscode/
+
+# Agda
+.agda-cache/
+*.agdai
+/html/  # Agda-generated HTML output (including stdlib)
+specs/docs/*Runner  # Agda-compiled executables
+inspiration/
+# Compiled binaries
+*.out
+*.exe
+*.bin
+
+# Python / uv
+.venv/
+__pycache__/
+*.pyc
+
+# Auto-generated files
+specs/docs/agda-modules.md
+specs/docs/javascripts/agda-copy.js
+specs/docs/stylesheets/agda.css
+specs/docs/assets/agda-codeblock.css  # Agda-generated CSS assets
+specs/docs/agda-datatypes.md
+specs/docs/agda-functions.md
+specs/docs/agda-usage.md
+specs/docs/MAlonzo/
+specs/plans
+
+build/
+site/
+_build/
+
+# Backup and temporary files
+*.bak
+*.log
+*~
+
+*.vim
+
+# Symbolic links
+inspiration/
+
+# Example executables
+specs/docs/examples/**/PingPongRunner
+specs/docs/PingPongRunner

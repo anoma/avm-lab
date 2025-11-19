@@ -1,0 +1,34 @@
+[project]
+name = "specs"
+version = "0.1.0"
+description = "AVM Lab Specifications"
+requires-python = ">=3.12"
+dependencies = [
+    "mkdocs-material>=9.5.0",
+    "mkdocs-bibtex>=2.16.0",
+    "html5lib>=1.1",
+    "lxml>=5.0.0",
+    "pillow>=10.0.0",
+    "cairosvg>=2.7.0",
+    "mkdocs-agda-plugin",
+    "mdx-truly-sane-lists>=1.3",
+    "tqdm>=4.67.1",
+    "mkdocs-kroki-plugin",
+    "mkdocs-glightbox>=0.4.0",
+    "zensical>=0.0.10",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["scripts"]
+
+[tool.uv.sources]
+mkdocs-agda-plugin = { path = "wheels/mkdocs_agda_plugin-0.4.16-py3-none-any.whl" }
+
+[dependency-groups]
+dev = [
+    "mkdocs-agda-plugin",
+]

@@ -1,0 +1,84 @@
+INHERIT: mkdocs.yml
+
+# Material for MkDocs Insiders features
+theme:
+  name: material
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    scheme: default
+    primary: black
+    accent: black
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - announce.dismiss
+    # - content.action.edit
+    # - content.action.view
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - content.tooltips
+    - navigation.footer
+    - navigation.indexes
+    - navigation.sections
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.top
+    - navigation.tracking
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.instant.preview
+    - navigation.instant.progress
+    # - navigation.expand
+    - navigation.path
+    - search.suggest
+    - search.highlight
+    - search.share
+    - toc.follow
+    - toc.integrate
+
+plugins:
+  - search:
+      lang: en
+  - tags
+  - glightbox
+  - kroki:
+      ServerURL: https://kroki.io
+      FileTypes:
+        - svg
+  - agda:
+      # agda_config_dir: .agda  # Project-local Agda library configuration
+      cache_dir: build/agda-cache
+      force_rebuild: true
+      include_css: true
+      highlight_code_only: false
+      auto_generate_index: true
+      index_file_name: everything.lagda.md
+      generate_datatype_index: true
+      datatype_index_filename: agda-datatypes.md
+      generate_function_index: true
+      function_index_filename: agda-functions.md
+      generate_usage_index: true
+      usage_index_filename: agda-usage.md
+      generate_references_section: true
+      show_module_references: true
+      show_backreferences: true
+      show_forward_references: true
+      verbose: true
+      include_paths:
+        - agda-libraries/agda-stdlib/
+        - agda-libraries/cubical/
+      # Link verification (post-build, can be slow for large sites)
+      verify_links: false
+      verify_anchors: false
+      verify_assets: false
+      fail_on_broken_links: false
+  - bibtex:
+      bib_file: "references/ref.bib"
+  # Insiders-only plugins (commented out as they require additional setup)
+  # - optimize:
+  #     enabled: true
+  # - privacy:
+  #     enabled: true
