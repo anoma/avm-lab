@@ -1,0 +1,208 @@
+/* Agda MkDocs Plugin - Core Styles */
+
+/* ============================================
+   Agda Code Block Styling
+   ============================================ */
+
+.Agda {
+  font-family: "JetBrains Mono", "Fira Code", "SF Mono", Monaco, "Cascadia Code",
+    "Roboto Mono", Consolas, "Courier New", monospace;
+  line-height: 1.4;
+  background-color: var(--md-code-bg-color);
+  border-radius: 0.2rem;
+  padding: 1rem;
+  padding-right: 3rem; /* Make room for version text and copy button */
+  margin: 1rem 0;
+  overflow-x: auto;
+  position: relative; /* For positioning copy button */
+}
+
+/* ============================================
+   Copy Button Styling
+   ============================================ */
+
+.agda-copy-button {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.5rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.25s;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--md-default-fg-color--light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.Agda:hover .agda-copy-button {
+  opacity: 1;
+}
+
+.agda-copy-button:hover {
+  color: var(--md-accent-fg-color);
+}
+
+.agda-copy-button.copied {
+  color: var(--md-success-fg-color, #00c853);
+  opacity: 1;
+}
+
+.agda-copy-button svg {
+  width: 1.125rem;
+  height: 1.125rem;
+  fill: currentColor;
+}
+
+/* ============================================
+   Agda Version Text Positioning
+   ============================================ */
+
+.Agda .AlignRight,
+.Agda a.AlignRight {
+  position: absolute;
+  top: 0.5rem;
+  right: 3rem; /* Move to the left of copy button */
+  font-size: 0.75rem;
+  opacity: 0.5;
+}
+
+/* Agda label with version (alternative using ::after) */
+pre.Agda::after {
+  font-family: var(--md-code-font-family, monospace);
+  content: "Agda";
+  font-size: 0.75rem;
+  color: var(--md-default-fg-color--light, #999);
+  opacity: 0.5;
+  position: absolute;
+  top: 0.5rem;
+  right: 3rem;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Hide ::after if AlignRight exists */
+.Agda .AlignRight ~ *::after,
+.Agda a.AlignRight ~ *::after {
+  display: none;
+}
+
+/* ============================================
+   Inline Agda Reference Styling
+   ============================================ */
+
+.agda-ref {
+  font-family: var(--md-code-font-family, monospace);
+  background-color: var(--md-code-bg-color, #f5f5f5);
+  padding: 0.1em 0.3em;
+  border-radius: 0.2em;
+  font-size: 0.9em;
+  text-decoration: none;
+  border: 1px solid var(--md-default-fg-color--lightest, #ddd);
+  transition: all 0.2s ease;
+}
+
+.agda-ref:hover {
+  background-color: var(
+    --md-accent-fg-color--transparent,
+    rgba(0, 100, 200, 0.1)
+  );
+  border-color: var(--md-accent-fg-color, #0064c8);
+  text-decoration: none;
+}
+
+/* Different colors for different symbol types */
+.agda-ref.agda-datatype {
+  border-left: 3px solid var(--md-primary-fg-color, #1976d2);
+}
+
+.agda-ref.agda-function {
+  border-left: 3px solid #4caf50;
+}
+
+.agda-ref.agda-function-operator {
+  border-left: 3px solid #ff9800;
+}
+
+.agda-ref.agda-inductiveconstructor {
+  border-left: 3px solid #9c27b0;
+}
+
+.agda-ref.agda-module {
+  border-left: 3px solid #795548;
+  font-weight: bold;
+}
+
+.agda-ref.agda-primitive {
+  border-left: 3px solid #f44336;
+}
+
+/* Unresolved reference styling */
+.agda-ref-unresolved {
+  font-family: var(--md-code-font-family, monospace);
+  background-color: #ffebee;
+  color: #c62828;
+  padding: 0.1em 0.3em;
+  border-radius: 0.2em;
+  font-size: 0.9em;
+  border: 1px dashed #ef5350;
+}
+
+/* ============================================
+   Agda Syntax Highlighting
+   (Custom colors - overrides Agda.css defaults)
+   ============================================ */
+
+.Agda .Keyword {
+  color: #0066cc;
+  font-weight: bold;
+}
+.Agda .Datatype {
+  color: #0099cc;
+}
+.Agda .Function {
+  color: #009900;
+}
+.Agda .InductiveConstructor {
+  color: #cc6600;
+}
+.Agda .Primitive {
+  color: #cc0066;
+}
+.Agda .Symbol {
+  color: #666666;
+}
+.Agda .Comment {
+  color: #999999;
+  font-style: italic;
+}
+.Agda .Module {
+  color: #663399;
+}
+
+/* Dark mode adjustments */
+[data-md-color-scheme="slate"] .Agda .Keyword {
+  color: #66b3ff;
+}
+[data-md-color-scheme="slate"] .Agda .Datatype {
+  color: #66ccff;
+}
+[data-md-color-scheme="slate"] .Agda .Function {
+  color: #66ff66;
+}
+[data-md-color-scheme="slate"] .Agda .InductiveConstructor {
+  color: #ffaa66;
+}
+[data-md-color-scheme="slate"] .Agda .Primitive {
+  color: #ff66cc;
+}
+[data-md-color-scheme="slate"] .Agda .Symbol {
+  color: #cccccc;
+}
+[data-md-color-scheme="slate"] .Agda .Comment {
+  color: #bbbbbb;
+}

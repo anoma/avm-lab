@@ -1,0 +1,6 @@
+[submodule "specs/agda-libraries/agda-stdlib"]
+	path = specs/agda-libraries/agda-stdlib
+	url = https://github.com/agda/agda-stdlib.git
+[submodule "specs/agda-libraries/cubical"]
+	path = specs/agda-libraries/cubical
+	url = https://github.com/agda/cubical.git

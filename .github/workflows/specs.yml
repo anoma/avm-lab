@@ -1,0 +1,92 @@
+name: ci specs
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      SKIP: agda-typecheck
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
+          fetch-depth: 0
+
+      - name: Initialize submodules
+        run: git submodule update --init --recursive
+
+      - name: Setup Agda
+        uses: wenkokke/setup-agda@latest
+        with:
+          agda-version: "latest"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "specs/pyproject.toml"
+
+      - name: Install dependencies
+        working-directory: specs
+        run: uv sync
+
+      - name: Initialize Agda libraries
+        working-directory: specs
+        run: |
+          # Update .agda/libraries with absolute paths for CI environment
+          mkdir -p ~/.agda
+          echo "$(pwd)/agda-libraries/agda-stdlib/standard-library.agda-lib" > ~/.agda/libraries
+          echo "$(pwd)/agda-libraries/cubical/cubical.agda-lib" >> ~/.agda/libraries
+
+      - name: Type-check Agda code
+        working-directory: specs/docs
+        run: |
+          agda everything.lagda.md
+
+      - name: Copy assets to docs directory
+        working-directory: specs
+        run: |
+          cp -r assets/stylesheets docs/
+          cp -r assets/javascripts docs/
+          cp -r assets/assets docs/
+
+      - name: Build documentation
+        working-directory: specs
+        env:
+          SITE_URL: https://anoma.github.io/avm-lab/
+          SITE_DIR: build/site
+        run: |
+          uv run agda-mkdocs build --config mkdocs.yml
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./specs/build/site
+
+  deploy:
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
