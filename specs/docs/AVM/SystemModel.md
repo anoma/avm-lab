@@ -41,8 +41,7 @@ implemented independently of the platform.
   1. `Store` is a conceptual persistent object database.
   2. Crash recovery strategy is platform-defined.
 
-
-<! -- what else? -->
+<!-- what else? well, that's the kitchen sink and all -->
 
 ## Network Model
 
