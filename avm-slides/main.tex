@@ -44,11 +44,17 @@
 
 % Font configuration for code (with fallback)
 \usepackage{fontspec}
-\IfFontExistsTF{PragmataPro Mono}{%
-  \setmonofont{PragmataPro Mono}[Scale=1.0,Contextuals=Alternate]%
-}{%
-  \setmonofont{Inconsolata}[Scale=0.95]%
-}
+% these lines cause trouble
+% \IfFontExistsTF{PragmataPro Mono}{%
+%   \setmonofont{PragmataPro Mono}[Scale=1.0,Contextuals=Alternate]%
+% }{%
+%   \setmonofont{Inconsolata}[Scale=0.95]%
+% }
+% thus we take the following three instead
+\usepackage{newunicodechar}
+\newunicodechar{ℕ}{\ensuremath{\mathbb{N}}}
+\newunicodechar{⊤}{\ensuremath{\top}}
+
 
 % Code listings for Agda
 \usepackage{listings}
