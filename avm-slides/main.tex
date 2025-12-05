@@ -320,11 +320,11 @@ The \textbf{Anoma Virtual Machine} is:
 \begin{frame}[fragile]{Layered Instruction Set Architecture}
 
 \begin{columns}[T]
-\column{0.48\textwidth}
-
+\column{0.58\textwidth}
+\centering
 \begin{tikzpicture}[node distance=0.8cm,font=\small]
   % Layer stack (5 layers)
-  \node[state,fill=lightblue,minimum width=7cm,minimum height=0.6cm] (l0) {Instr$_0$: obj + introspect + reflect + reify};
+  \node[state,fill=lightblue,minimum width=7cm,minimum height=0.6cm] (l0) {Instr$_0$: obj + intr. + reflect + reify};
   \node[state,fill=junglegreen!30,minimum width=7cm,minimum height=0.6cm,below of=l0] (l1) {Instr$_1$: + tx};
   \node[state,fill=dodgerblue!30,minimum width=7cm,minimum height=0.6cm,below of=l1] (l2) {Instr$_2$: + pure};
   \node[state,fill=gray!20,minimum width=7cm,minimum height=0.6cm,below of=l2] (l3) {Instr$_3$: + machine + controller};
@@ -345,8 +345,9 @@ The \textbf{Anoma Virtual Machine} is:
 \end{tikzpicture}
 
 \column{0.52\textwidth}
+\centering
 
-\textbf{Programs are ITrees} \cite{XiaEtAl-POPL-2020-InteractionTrees}
+\textbf{Programs are ITrees}\\
 
 \begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
 AVMProgram : Set → Set
@@ -369,9 +370,9 @@ AVMProgram = ITree (Instruction Safe)
   \node at (1.8,-2.3)  (cont2) {$\cdots$};
 
   % Edges
-  \draw[edge,thick] (call) -- node[above left,font=\tiny] {Nothing} (tau1);
-  \draw[resp,thick] (call) -- node[right,font=\tiny] {Just out} (ret);
-  \draw[msg,thick]  (call) -- node[above right,font=\tiny] {Nothing} (write);
+  \draw[edge,thick] (call) -- node[above left,font=\tiny] {} (tau1);
+  \draw[resp,thick] (call) -- node[right,font=\tiny] {} (ret);
+  \draw[msg,thick]  (call) -- node[above right,font=\tiny] {} (write);
   \draw[edge,draw=gray,dashed] (tau1) -- (cont1);
   \draw[edge,draw=gray,dashed] (write) -- (cont2);
 \end{tikzpicture}
@@ -854,7 +855,7 @@ getBehavior obj (history ++ [newInput])
   \draw[edge,draw=nicered] (s2) -- node[above right,black,font=\tiny] {abortTx} (abort);
 
   % Overlay annotation bracket (opening to the left)
-  \draw[decorate,decoration={brace,mirror,amplitude=5pt},thick,darkblue]
+  \draw[decorate,decoration={brace,amplitude=5pt},thick,darkblue]
     ([xshift=2.2cm]s0.north east) -- ([xshift=2.2cm]s2.south east)
     node[midway,right,xshift=0.2cm,text width=1.1cm,align=left,font=\tiny] {TxLog\\overlay};
 \end{tikzpicture}
