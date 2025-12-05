@@ -18,7 +18,7 @@ distribution semantics, as implementation stubs subject to future refinement.
 <figure markdown="1">
 
 | Component                        | Description                                                                                       |
-|:---------------------------------:---------------------------------------------------------------------------------------------------|
+|:----------------------------------:----------------------------------------------------------------------------------------------------|
 | **Helper Functions**             | -                                                                                                 |
 | Agda@allObjectIds                | Extract all object IDs from store (module parameter)                                             |
 | Agda@lookupObjectWithMeta        | [Retrieve object with metadata](#object-and-metadata-retrieval-operations)                       |

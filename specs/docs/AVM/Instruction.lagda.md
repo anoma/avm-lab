@@ -15,56 +15,56 @@ capabilities.
 
 <figure markdown="1">
 
-| Instruction Set             | Description                                                                      |
-|:----------------------------|:--------------------------------------------------------------------------------|
-| **Object layer**            | -                                                                                |
-| Agda@createObj              | [Create new object by referencing behavior name](#createobj)                     |
-| Agda@destroyObj             | [Mark object for destruction](#destroyobj)                                       |
-| Agda@call                   | [Send message to object, receive output synchronously](#call)                    |
-| Agda@receive                | [Receive next available message asynchronously](#receive)                        |
-| **Introspection layer**     | -                                                                                |
-| Agda@self                   | [Return current object's ID](#self)                                              |
-| Agda@input                  | [Return current input message](#input)                                           |
-| Agda@getCurrentMachine      | [Return current physical machine ID](#getcurrentmachine)                         |
-| Agda@history                | [Return accumulated input sequence](#history)                                    |
-| Agda@sender                 | [Return calling object's ID](#sender)                                            |
-| **Reflection layer**        | -                                                                                |
-| Agda@reflect                | [Retrieve object metadata (unsafe)](#reflect-unsafe)                             |
-| Agda@scryMeta               | [Query objects by metadata predicate (unsafe)](#scrymeta-unsafe)                 |
-| Agda@scryDeep               | [Query objects by internals and metadata (unsafe)](#scrydeep-unsafe)             |
-| **Reification layer**       | -                                                                                |
-| Agda@reifyContext           | [Capture current execution context as data](#reifycontext)                       |
-| Agda@reifyTxState           | [Capture transaction state as data (unsafe)](#reifytxstate-unsafe)               |
-| Agda@reifyConstraints       | [Capture constraint store as data (unsafe)](#reifyconstraints-unsafe)            |
-| **Transaction layer**       | -                                                                                |
-| Agda@beginTx                | [Start new atomic transaction context](#begintx)                                 |
-| Agda@commitTx               | [Commit transaction changes to store](#committx)                                 |
-| Agda@abortTx                | [Abort transaction, discard changes](#aborttx)                                   |
-| **Pure function layer**     | -                                                                                |
-| Agda@callPure               | [Invoke registered pure function](#callpure)                                     |
-| Agda@registerPure           | [Register new pure function (unsafe)](#registerpure-unsafe)                      |
-| Agda@updatePure             | [Update existing pure function definition](#updatepure)                          |
-| **Machine layer**           | -                                                                                |
-| Agda@getMachine             | [Query physical machine location of object](#getmachine)                         |
-| Agda@teleport               | [Move execution context to another machine](#teleport)                           |
-| Agda@moveObject             | [Move object data to another machine](#moveobject)                               |
-| Agda@fetch                  | [Bring object replica to local machine](#fetch)                                  |
-| **Controller layer**        | -                                                                                |
-| Agda@getCurrentController   | [Return current controller ID](#getcurrentcontroller)                            |
-| Agda@getController          | [Query object's controller](#getcontroller)                                      |
-| Agda@transferObject         | [Transfer object ownership to another controller](#transferobject)               |
-| Agda@freeze                 | [Synchronize object replicas for strong consistency](#freeze)                    |
-| **FD constraint layer**     | -                                                                                |
-| Agda@newVar                 | [Create fresh constraint variable with finite domain](#newvar)                   |
-| Agda@narrow                 | [Narrow variable domain by intersection](#narrow)                                |
-| Agda@post                   | [Post relational constraint to constraint store](#post)                          |
-| Agda@label                  | [Select value from variable's domain (search step)](#label)                      |
-| **Nondeterminism layer**    | -                                                                                |
-| Agda@choose                 | [Select value from preference distribution](#nondeterminism-instructions)        |
-| Agda@require                | [Assert constraint for transaction](#nondeterminism-instructions)                |
-| **Linear constraint layer** | -                                                                                |
-| Agda@newLinearConstraint    | [Register linear constraint](#linear-constraint-instructions)                    |
-| Agda@satisfyLinear          | [Mark constraint as satisfied](#linear-constraint-instructions)                  |
+| Instruction Set | Description |
+|:----------------|:------------|
+| **Object layer** | |
+| `createObj` | [Create new object by referencing behavior name](#createobj) |
+| `destroyObj` | [Mark object for destruction](#destroyobj) |
+| `call` | [Send message to object, receive output synchronously](#call) |
+| `receive` | [Receive next available message asynchronously](#receive) |
+| **Introspection layer** | |
+| `self` | [Return current object's ID](#self) |
+| `input` | [Return current input message](#input) |
+| `getCurrentMachine` | [Return current physical machine ID](#getcurrentmachine) |
+| `history` | [Return accumulated input sequence](#history) |
+| `sender` | [Return calling object's ID](#sender) |
+| **Reflection layer** | |
+| `reflect` | [Retrieve object metadata (unsafe)](#reflect-unsafe) |
+| `scryMeta` | [Query objects by metadata predicate (unsafe)](#scrymeta-unsafe) |
+| `scryDeep` | [Query objects by internals and metadata (unsafe)](#scrydeep-unsafe) |
+| **Reification layer** | |
+| `reifyContext` | [Capture current execution context as data](#reifycontext) |
+| `reifyTxState` | [Capture transaction state as data (unsafe)](#reifytxstate-unsafe) |
+| `reifyConstraints` | [Capture constraint store as data (unsafe)](#reifyconstraints-unsafe) |
+| **Transaction layer** | |
+| `beginTx` | [Start new atomic transaction context](#begintx) |
+| `commitTx` | [Commit transaction changes to store](#committx) |
+| `abortTx` | [Abort transaction, discard changes](#aborttx) |
+| **Pure function layer** | |
+| `callPure` | [Invoke registered pure function](#callpure) |
+| `registerPure` | [Register new pure function (unsafe)](#registerpure-unsafe) |
+| `updatePure` | [Update existing pure function definition](#updatepure) |
+| **Machine layer** | |
+| `getMachine` | [Query physical machine location of object](#getmachine) |
+| `teleport` | [Move execution context to another machine](#teleport) |
+| `moveObject` | [Move object data to another machine](#moveobject) |
+| `fetch` | [Bring object replica to local machine](#fetch) |
+| **Controller layer** | |
+| `getCurrentController` | [Return current controller ID](#getcurrentcontroller) |
+| `getController` | [Query object's controller](#getcontroller) |
+| `transferObject` | [Transfer object ownership to another controller](#transferobject) |
+| `freeze` | [Synchronize object replicas for strong consistency](#freeze) |
+| **FD constraint layer** | |
+| `newVar` | [Create fresh constraint variable with finite domain](#newvar) |
+| `narrow` | [Narrow variable domain by intersection](#narrow) |
+| `post` | [Post relational constraint to constraint store](#post) |
+| `label` | [Select value from variable's domain (search step)](#label) |
+| **Nondeterminism layer** | |
+| `choose` | [Select value from preference distribution](#nondeterminism-instructions) |
+| `require` | [Assert constraint for transaction](#nondeterminism-instructions) |
+| **Linear constraint layer** | |
+| `newLinearConstraint` | [Register linear constraint](#linear-constraint-instructions) |
+| `satisfyLinear` | [Mark constraint as satisfied](#linear-constraint-instructions) |
 
 <figcaption>AVM Instruction Set Architecture</figcaption>
 

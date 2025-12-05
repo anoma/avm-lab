@@ -162,6 +162,10 @@ nav:
       - Ping-Pong Protocol:
           - Example: ./examples/PingPong/Main.lagda.md
           - Runner: ./examples/PingPong/Runner.lagda.md
+      - Battleship Game:
+          - Player Board: ./examples/Battleship/PlayerBoard.lagda.md
+          - Game Orchestrator: ./examples/Battleship/Game.lagda.md
+          - Runner: ./examples/Battleship/Runner.lagda.md
       - Utilities:
           - Runner Utilities: ./examples/RunnerUtilities.lagda.md
   - Background:

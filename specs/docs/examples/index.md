@@ -23,4 +23,19 @@ interaction semantics.
 
   [:octicons-arrow-right-24: View Example](examples/PingPong/Main.lagda.md)
 
+- :fontawesome-solid-chess-board: **Battleship**
+
+  ***
+
+  A Battleship game demonstrating stateful object interactions, game orchestration,
+  and turn-based coordination between multiple player objects.
+
+  ```bash
+  cd specs/docs
+  agda --compile examples/Battleship/Runner.lagda.md
+  ./Runner
+  ```
+
+  [:octicons-arrow-right-24: View Example](examples/Battleship/PlayerBoard.lagda.md)
+
 </div>
