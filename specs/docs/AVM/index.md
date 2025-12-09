@@ -16,7 +16,7 @@ This section collects the formal specification of the Anoma Virtual Machine (AVM
 
   The assumptions for distributed, transactional execution.
 
-  [:octicons-arrow-right-24: View Page](SystemModel.md)
+  [:octicons-arrow-right-24: View Page](AVM/SystemModel.md)
 
 - :fontawesome-solid-layer-group: 2. Runtime Context
 
@@ -24,7 +24,7 @@ This section collects the formal specification of the Anoma Virtual Machine (AVM
 
   State, errors, and trace types that the interpreter and runtime share.
 
-  [:octicons-arrow-right-24: View Page](Context.md)
+  [:octicons-arrow-right-24: View Page](AVM/Context.lagda.md)
 
 - :fontawesome-solid-code: 3. Instruction Set
 
@@ -32,7 +32,7 @@ This section collects the formal specification of the Anoma Virtual Machine (AVM
 
   The primitive operations for object lifecycle, transactions, and distributed execution.
 
-  [:octicons-arrow-right-24: View Page](Instruction.md)
+  [:octicons-arrow-right-24: View Page](AVM/Instruction.lagda.md)
 
 - :fontawesome-solid-gears: 4. Interpreter
 
@@ -40,7 +40,7 @@ This section collects the formal specification of the Anoma Virtual Machine (AVM
 
   Operational semantics that define how instructions transform state.
 
-  [:octicons-arrow-right-24: View Page](Interpreter.md)
+  [:octicons-arrow-right-24: View Page](AVM/Interpreter.lagda.md)
 
 - :material-road: 5. Runtime Guidance
 
@@ -48,6 +48,6 @@ This section collects the formal specification of the Anoma Virtual Machine (AVM
 
   Non-normative guidance for building a runtime that meets the spec.
 
-  [:octicons-arrow-right-24: View Page](Runtime.md)
+  [:octicons-arrow-right-24: View Page](AVM/Runtime.md)
 
 </div>
