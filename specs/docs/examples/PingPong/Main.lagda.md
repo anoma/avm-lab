@@ -143,12 +143,12 @@ open import AVM.Instruction Val ObjectId MachineId ControllerId TxId ObjectBehav
 
 ```agda
 createPing : AVMProgram ObjectId
-createPing = trigger (obj-create "ping")
+createPing = trigger (obj-create "ping" nothing)
 ```
 
 ```agda
 createPong : AVMProgram ObjectId
-createPong = trigger (obj-create "pong")
+createPong = trigger (obj-create "pong" nothing)
 ```
 
 ```agda

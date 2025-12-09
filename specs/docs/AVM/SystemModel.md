@@ -159,18 +159,18 @@ The mapping between machines and controllers is left to the platform:
 2. Virtualized: Multiple controllers per machine (multi-tenancy).
 3. Distributed: One controller spanning multiple machines (replication).
 
-Uniqueness: Each object has exactly one `currentController` at any time, recorded in metadata.
+Uniqueness: Each object has at most one `currentController` at any time, recorded in metadata. Objects may have no controller at creation time.
 
 ### Authority and Trust Boundaries
 
 #### Object Lifecycle Authority
 
 
-1. Creation: The controller that executes Agda@createObj becomes the object's immutable Agda@creatingController and initial `currentController`.
+1. Creation: Agda@createObj accepts an optional controller parameter. If specified, that controller becomes the object's immutable Agda@creatingController and initial `currentController`. If omitted within a transaction, the transaction's controller is used. Objects may be created without a controller (both fields set to `nothing`) when created outside transactions with no controller specified.
 
 2. Transfer: Agda@transferObject updates `currentController` to transfer authority.
 
-3. Destruction: Only the `currentController` may destroy an object, via a transaction containing Agda@destroyObj.
+3. Destruction: Only the `currentController` may destroy an object, via a transaction containing Agda@destroyObj. Objects without a controller cannot be destroyed until a controller is assigned.
 
 <!-- TODO: confirm 3. or better, who can destroy an object? -->
 

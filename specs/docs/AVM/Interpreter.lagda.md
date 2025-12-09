@@ -15,63 +15,85 @@ generate observability log entries. The current specification prioritizes core
 semantic definitions while designating certain aspects, such as detailed
 distribution semantics, as implementation stubs subject to future refinement.
 
-<figure markdown="1">
+### Program-Level Interpreters
 
-| Component                        | Description                                                                                       |
-|:----------------------------------:----------------------------------------------------------------------------------------------------|
-| **Helper Functions**             | -                                                                                                 |
-| Agda@allObjectIds                | Extract all object IDs from store (module parameter)                                             |
-| Agda@lookupObjectWithMeta        | [Retrieve object with metadata](#object-and-metadata-retrieval-operations)                       |
-| Agda@lookupPendingCreate         | [Query pending object creations](#object-and-metadata-retrieval-operations)                      |
-| Agda@lookupPendingTransfer       | [Query pending ownership transfers](#object-and-metadata-retrieval-operations)                   |
-| Agda@updateMeta                  | [Replace metadata for specific object](#state-transformation-operations)                         |
-| Agda@createWithMeta              | [Install object and metadata in store](#state-transformation-operations)                         |
-| Agda@initMeta                    | [Create initial metadata for new object](#metadata-initialization-and-observability-log-construction) |
-| Agda@makeLogEntry                | [Construct log entry with event data](#metadata-initialization-and-observability-log-construction) |
-| Agda@pendingInputsFor            | [Collect pending inputs for object](#transaction-log-query-operations)                           |
-| Agda@addPendingWrite             | [Append input to transaction log](#transaction-log-query-operations)                             |
-| Agda@addPendingCreate            | [Stage object creation for commit](#transactional-overlay-management)                            |
-| Agda@removePendingCreate         | [Cancel staged object creation](#transactional-overlay-management)                               |
-| Agda@addPendingDestroy           | [Mark object for deletion](#transactional-overlay-management)                                    |
-| Agda@addPendingTransfer          | [Schedule ownership change](#transactional-overlay-management)                                   |
-| Agda@ensureObserved              | [Add object to transaction read set](#read-set-tracking-and-validation)                          |
-| Agda@validateObserved            | [Verify all observed objects exist](#read-set-tracking-and-validation)                           |
-| Agda@checkOwnership              | [Validate object ownership](#read-set-tracking-and-validation)                                   |
-| Agda@applyCreates                | [Commit pending object creations](#transaction-commitment-operations)                            |
-| Agda@applyWrites                 | [Commit pending input updates](#transaction-commitment-operations)                               |
-| Agda@applyDestroys               | [Commit pending deletions](#transaction-commitment-operations)                                   |
-| Agda@applyTransfers              | [Commit pending ownership changes](#transaction-commitment-operations)                           |
-| Agda@handleCall                  | [Execute object behavior and manage state](#object-invocation-semantics)                         |
-| **Instruction Interpreters**     | -                                                                                                 |
-| Agda@executeObj                  | [Interpret object lifecycle instructions](#object-lifecycle-operations)                          |
-| Agda@executeIntrospect           | [Interpret introspection instructions](#execution-context-introspection-operations)              |
-| Agda@executeReflect              | [Interpret reflection instructions](#reflection-operations)                                      |
-| Agda@executeReify                | [Interpret reification instructions](#reification-operations)                                    |
-| Agda@executeTx                   | [Interpret transaction control instructions](#transactional-semantics-operations)                |
-| Agda@executePure                 | [Interpret pure function instructions](#pure-computation-operations)                             |
-| Agda@executeMachine              | [Interpret machine distribution instructions](#physical-distribution-operations)                 |
-| Agda@executeController           | [Interpret controller authority instructions](#logical-authority-and-ownership-operations)       |
-| **Instruction Set Interpreters** | -                                                                                                 |
-| Agda@executeInstr₀               | [Execute basic instruction set (object + introspect)](#basic-instruction-set-interpreter-instr₀) |
-| Agda@executeInstr₁               | [Execute with transaction support](#transactional-instruction-set-interpreter-instr₁)            |
-| Agda@executeInstr₂               | [Execute with pure computation support](#extended-instruction-set-interpreter-instr₂)            |
-| Agda@executeInstruction          | [Execute full instruction set (all layers)](#complete-instruction-set-interpreter-instruction)   |
-| **Program Interpreters**         | -                                                                                                 |
-| Agda@interpretAVMProgram         | [Interpret programs using full Instruction set](#complete-avm-program-interpreter)               |
+The main entry points for executing AVM programs. Start here to understand the high-level interpretation process.
 
-<figcaption>AVM Interpreter Components</figcaption>
+| Component                | Description                                                                      |
+|:-------------------------|:---------------------------------------------------------------------------------|
+| Agda@interpretAVMProgram | [Interpret programs using full Instruction set](#complete-avm-program-interpreter) |
 
-</figure>
+### Instruction Set Interpreters
 
-<!-- Agda imports
+Dispatch logic for different instruction set safety levels, routing instructions to their operational semantics.
 
-```agda
-{-# OPTIONS --exact-split --without-K --guardedness #-}
+| Component               | Description                                                                                      |
+|:------------------------|:-------------------------------------------------------------------------------------------------|
+| Agda@executeInstruction | [Execute full instruction set (all layers)](#complete-instruction-set-interpreter-instruction)   |
+| Agda@executeInstr₂      | [Execute with pure computation support](#extended-instruction-set-interpreter-instr₂)            |
+| Agda@executeInstr₁      | [Execute with transaction support](#transactional-instruction-set-interpreter-instr₁)            |
+| Agda@executeInstr₀      | [Execute basic instruction set (object + introspect)](#basic-instruction-set-interpreter-instr₀) |
 
-open import Background.BasicTypes using (ℕ; List; Maybe)
-```
+### Instruction Interpreters
 
--->
+Operational semantics for each instruction family, defining how instructions modify VM state.
+
+| Component                  | Description                                                                                  |
+|:---------------------------|:---------------------------------------------------------------------------------------------|
+| Agda@executeObj            | [Interpret object lifecycle instructions](#object-lifecycle-operations)                      |
+| Agda@executeTx             | [Interpret transaction control instructions](#transactional-semantics-operations)            |
+| Agda@executeController     | [Interpret controller authority instructions](#logical-authority-and-ownership-operations)   |
+| Agda@executeMachine        | [Interpret machine distribution instructions](#physical-distribution-operations)             |
+| Agda@executeIntrospect     | [Interpret introspection instructions](#execution-context-introspection-operations)          |
+| Agda@executeReflect        | [Interpret reflection instructions](#reflection-operations)                                  |
+| Agda@executeReify          | [Interpret reification instructions](#reification-operations)                                |
+| Agda@executePure           | [Interpret pure function instructions](#pure-computation-operations)                         |
+
+### Supporting Operations
+
+Helper functions and utilities organized by functional area.
+
+#### Object and State Management
+
+| Component                 | Description                                                                                           |
+|:--------------------------|:------------------------------------------------------------------------------------------------------|
+| Agda@handleCall           | [Execute object behavior and manage state](#object-invocation-semantics)                             |
+| Agda@lookupObjectWithMeta | [Retrieve object with metadata](#object-and-metadata-retrieval-operations)                           |
+| Agda@lookupPendingCreate  | [Query pending object creations](#object-and-metadata-retrieval-operations)                          |
+| Agda@updateMeta           | [Replace metadata for specific object](#state-transformation-operations)                             |
+| Agda@createWithMeta       | [Install object and metadata in store](#state-transformation-operations)                             |
+| Agda@initMeta             | [Create initial metadata for new object](#metadata-initialization-and-observability-log-construction) |
+
+#### Transaction Management
+
+| Component                  | Description                                                                      |
+|:---------------------------|:---------------------------------------------------------------------------------|
+| Agda@addPendingCreate      | [Stage object creation for commit](#transactional-overlay-management)           |
+| Agda@removePendingCreate   | [Cancel staged object creation](#transactional-overlay-management)              |
+| Agda@addPendingDestroy     | [Mark object for deletion](#transactional-overlay-management)                   |
+| Agda@addPendingTransfer    | [Schedule ownership change](#transactional-overlay-management)                  |
+| Agda@lookupPendingTransfer | [Query pending ownership transfers](#object-and-metadata-retrieval-operations)  |
+| Agda@addPendingWrite       | [Append input to transaction log](#transaction-log-query-operations)            |
+| Agda@pendingInputsFor      | [Collect pending inputs for object](#transaction-log-query-operations)          |
+
+#### Transaction Validation and Commitment
+
+| Component             | Description                                                                 |
+|:----------------------|:----------------------------------------------------------------------------|
+| Agda@ensureObserved   | [Add object to transaction read set](#read-set-tracking-and-validation)    |
+| Agda@validateObserved | [Verify all observed objects exist](#read-set-tracking-and-validation)     |
+| Agda@checkOwnership   | [Validate object ownership](#read-set-tracking-and-validation)             |
+| Agda@applyCreates     | [Commit pending object creations](#transaction-commitment-operations)      |
+| Agda@applyWrites      | [Commit pending input updates](#transaction-commitment-operations)         |
+| Agda@applyDestroys    | [Commit pending deletions](#transaction-commitment-operations)             |
+| Agda@applyTransfers   | [Commit pending ownership changes](#transaction-commitment-operations)     |
+
+#### Observability
+
+| Component         | Description                                                                                           |
+|:------------------|:------------------------------------------------------------------------------------------------------|
+| Agda@makeLogEntry | [Construct log entry with event data](#metadata-initialization-and-observability-log-construction)   |
+
 
 ## Object Behavior Model
 
@@ -96,6 +118,16 @@ abstract type definitions from platform-specific implementation requirements.
 The outer module is parameterized by the core abstract types for values, objects, identifiers,
 and fresh ID generation. These parameters define the type-level interface of the AVM but remain
 abstract with respect to their concrete representation.
+
+<!-- 
+agda necessary imports
+
+```agda
+{-# OPTIONS --exact-split --without-K --guardedness #-}
+
+open import Background.BasicTypes using (ℕ)
+```
+-->
 
 <details markdown="1">
 <summary>Outer Module Parameters</summary>
@@ -123,14 +155,16 @@ module AVM.Interpreter
   where
 ```
 
+</details>
+
 ```agda
+open import Background.BasicTypes using (ℕ; List; Maybe)
 open import Background.BasicTypes hiding (ℕ)
 open import Background.InteractionTrees
 
 open import AVM.Instruction Val ObjectId MachineId ControllerId TxId ObjectBehaviour public
 ```
 
-</details>
 
 ### Platform Implementation Requirements
 
@@ -157,6 +191,7 @@ module Interpreter
   -- (Agda's built-in propositional equality is not decidable for arbitrary types)
   (eqObjectId : ObjectId → ObjectId → Bool)
   (eqTxId : TxId → TxId → Bool)
+  (eqControllerId : ControllerId → ControllerId → Bool)
 
   -- State introspection: Extract all object identifiers from store
   (allObjectIds : State → List ObjectId)
@@ -175,6 +210,9 @@ module Interpreter
   -- - Accuracy: Best-effort (may have false positives during transient partitions)
   (isReachableController : ControllerId → Bool)
   (isReachableMachine : MachineId → Bool)
+
+  -- Controller ID construction: Create controller IDs from strings (for error messages)
+  (mkControllerId : String → ControllerId)
 
   -- Program interpreter: Recursive self-reference to avoid circular dependencies
   -- This parameter enables object behaviours to be executed by recursively
@@ -195,11 +233,11 @@ only when both the object behaviour and its metadata are available.
   lookupObjectWithMeta : ObjectId → State → Maybe RuntimeObject
   lookupObjectWithMeta oid st
     with Store.objects (State.store st) oid
-    | Store.metadata (State.store st) oid
-  ... | just obj | just meta = just (obj , meta)
-  ... | just obj | nothing = nothing
-  ... | nothing | just meta = nothing
-  ... | nothing | nothing = nothing
+       | Store.metadata (State.store st) oid
+  ...  | nothing   | nothing   = nothing
+  ...  | just obj  | just meta = just (obj , meta)
+  ...  | just obj  | nothing   = nothing
+  ... |  nothing   | just meta = nothing
 ```
 
 Pending object creations reside within the transactional overlay and must be
@@ -208,13 +246,9 @@ creates within the transaction scope.
 
 ```agda
   lookupPendingCreate : ObjectId → State → Maybe RuntimeObject
-  lookupPendingCreate oid st = go (State.creates st)
-    where
-      go : List RuntimeObjectWithId → Maybe RuntimeObject
-      go [] = nothing
-      go ((oid' , obj , meta) ∷ rest) with eqObjectId oid oid'
-      ... | true = just (obj , meta)
-      ... | false = go rest
+  lookupPendingCreate oid st =
+    map-maybe (λ { (oid' , obj , meta) → obj , meta })
+              (find (λ { (oid' , _ , _) → eqObjectId oid oid' }) (State.creates st))
 ```
 
 Pending transfers maintain a record of ownership changes scheduled for
@@ -222,13 +256,7 @@ Pending transfers maintain a record of ownership changes scheduled for
 
 ```agda
   lookupPendingTransfer : ObjectId → State → Maybe ControllerId
-  lookupPendingTransfer oid st = go (State.pendingTransfers st)
-    where
-      go : List (ObjectId × ControllerId) → Maybe ControllerId
-      go [] = nothing
-      go ((oid' , cid) ∷ rest) with eqObjectId oid oid'
-      ... | true  = just cid
-      ... | false = go rest
+  lookupPendingTransfer oid st = lookup eqObjectId oid (State.pendingTransfers st)
 ```
 
 #### State Transformation Operations
@@ -239,28 +267,44 @@ specified object identifier, modifying the store in-place.
 ```agda
   updateMeta : ObjectId → ObjectMeta → State → State
   updateMeta oid meta st =
+    let store = State.store st in
     record st {
-      store = record (State.store st) {
-        metadata = λ oid' → if eqObjectId oid oid'
-                           then just meta
-                           else Store.metadata (State.store st) oid'
+      store = record store {
+        metadata = λ oid' → 
+          if eqObjectId oid oid' 
+          then 
+            just meta
+          else 
+            Store.metadata store oid'
       }
     }
 ```
 
 Object creation with metadata performs atomic installation of both the object
-behaviour and its associated metadata into the global store.
+behaviour and its associated metadata into the global store. In a production
+implementation of the interpreter, instead of having mappings for the object
+store, a hash map would be used. For now, we nest if-then-else expressions to
+simulate the hash map, quite inefficiently.
 
 ```agda
   createWithMeta : ObjectBehaviour → ObjectMeta → State → State
   createWithMeta obj meta st =
     let oid = ObjectMeta.objectId meta in
+    let store = State.store st in
     record st {
-      store = record (State.store st) {
-        objects = λ oid' → if eqObjectId oid oid' then just obj
-                           else Store.objects (State.store st) oid'
-        ; metadata = λ oid' → if eqObjectId oid oid' then just meta
-                             else Store.metadata (State.store st) oid'
+      store = record store {
+        objects = λ oid' → 
+          if eqObjectId oid oid' 
+          then 
+            just obj 
+          else 
+            Store.objects store oid'
+        ; metadata = λ oid' → 
+            if eqObjectId oid oid' 
+            then 
+              just meta 
+            else 
+              Store.metadata store oid'
       }
     }
 ```
@@ -271,8 +315,8 @@ Initial metadata construction assigns a newly created object to a specified
 machine and controller, establishing its initial ownership and placement state.
 
 ```agda
-  initMeta : ObjectId → MachineId → ControllerId → ObjectMeta
-  initMeta oid mid cid = mkMeta oid [] mid cid cid
+  initMeta : ObjectId → MachineId → Maybe ControllerId → ObjectMeta
+  initMeta oid mid mcid = mkMeta oid [] mid mcid mcid
 ```
 
 Log entry construction records observable events with a monotonically increasing
@@ -281,14 +325,16 @@ executing the operation.
 
 ```agda
   makeLogEntry : EventType → State → LogEntry
-  makeLogEntry eventType st = mkLogEntry (State.eventCounter st) eventType (State.controllerId st)
+  makeLogEntry eventType st =
+    mkLogEntry (State.eventCounter st) eventType (State.txController st)
 
   -- Increment the event counter after logging an event
   incrementEventCounter : State → State
-  incrementEventCounter st = record st { eventCounter = suc (State.eventCounter st) }
+  incrementEventCounter st =
+    record st { eventCounter = suc (State.eventCounter st) }
 ```
 
-#### Transaction Log Query Operations
+#### Transactional Overlay Management
 
 Pending input retrieval accumulates all input messages directed to a specified
 object within the scope of the current transaction, enabling objects to process
@@ -296,14 +342,9 @@ batched inputs upon behavioral invocation.
 
 ```agda
   pendingInputsFor : ObjectId → State → List Input
-  pendingInputsFor oid st = collect (State.txLog st)
-    where
-      collect : List (ObjectId × Input) → List Input
-      collect [] = []
-      collect ((oid' , inp) ∷ rest)
-        with eqObjectId oid oid'
-      ...  | true  = inp ∷ collect rest
-      ...  | false = collect rest
+  pendingInputsFor oid st =
+    filterMap (λ { (oid' , inp) → if eqObjectId oid oid' then just inp else nothing })
+              (State.txLog st)
 ```
 
 The addition of a pending write operation appends an input message to the
@@ -316,7 +357,6 @@ transaction commitment.
     record st { txLog = (State.txLog st) ++ ((oid , inp) ∷ []) }
 ```
 
-#### Transactional Overlay Management
 
 Pending object creations represent staged operations that are deferred until
 transaction commitment, at which point they are atomically installed into the
@@ -334,13 +374,7 @@ creation, effectively rolling back the create from the transaction overlay.
 ```agda
   removePendingCreate : ObjectId → State → State
   removePendingCreate oid st =
-    record st { creates = remove (State.creates st) }
-    where
-      remove : List RuntimeObjectWithId → List RuntimeObjectWithId
-      remove [] = []
-      remove ((oid' , obj , meta) ∷ rest) with eqObjectId oid oid'
-      ... | true  = rest
-      ... | false = (oid' , obj , meta) ∷ remove rest
+    record st { creates = filter (λ { (oid' , _ , _) → not (eqObjectId oid oid') }) (State.creates st) }
 ```
 
 Pending destroy operations mark objects for deletion, scheduling their removal
@@ -361,6 +395,78 @@ reassignment of object controllers until transaction commitment.
     record st { pendingTransfers = (State.pendingTransfers st) ++ ((oid , cid) ∷ []) }
 ```
 
+#### TX/NoTX Branching Helpers
+
+Transaction-aware branching helpers eliminate code duplication in instruction
+handlers that exhibit different behavior when executing inside versus outside
+a transaction context. These helpers capture the common pattern of computing
+a log entry and result value, then selecting the appropriate state update
+function based on transaction presence.
+
+```agda
+  -- Generic transaction-aware branching helper accepts a log entry paired with
+  -- a result value, plus two state update functions (one for transactional
+  -- execution, one for non-transactional execution). The helper examines the
+  -- transaction state and applies the corresponding update function.
+  withTxBranch : ∀ {A} →
+    State →
+    (LogEntry × A) →
+    (State → State) →  -- state update when in transaction
+    (State → State) →  -- state update when not in transaction
+    AVMResult A
+  withTxBranch st (entry , value) inTxUpdate noTxUpdate =
+    let stUpdate = caseMaybe (State.tx st) (λ _ → inTxUpdate st) (noTxUpdate st)
+        st' = incrementEventCounter stUpdate
+    in success (mkSuccess value st' (entry ∷ []))
+
+  -- Object creation helper specializes the generic branching helper for the
+  -- createObj instruction, eliminating duplication between immediate creation
+  -- (createWithMeta) and pending transactional creation (addPendingCreate).
+  withCreateTxBranch : String → Maybe ControllerId → State → AVMResult ObjectId
+  withCreateTxBranch behaviorName mController st =
+    let oid = freshObjectId (State.eventCounter st)
+        obj = interpretBehaviorName behaviorName
+        effectiveController = caseMaybe mController (λ c → just c) (State.txController st)
+        meta = initMeta oid (State.machineId st) effectiveController
+        entry = makeLogEntry (ObjectCreated oid behaviorName) st
+    in withTxBranch st
+         (entry , oid)
+         (λ st → addPendingCreate oid obj meta st)   -- in transaction
+         (λ st → createWithMeta obj meta st)          -- not in transaction
+```
+
+#### Success Construction Helpers
+
+Success construction helpers eliminate repetitive result construction patterns
+by providing uniform abstractions for the three most common success scenarios:
+traceless operations, operations with pre-computed log entries, and operations
+that generate log entries from event types.
+
+```agda
+  -- Traceless success construction produces a success result with an empty
+  -- trace, used for read-only operations that do not modify observable state
+  -- and therefore generate no log entries.
+  mkSuccessNoTrace : ∀ {A} → A → State → AVMResult A
+  mkSuccessNoTrace value st = success (mkSuccess value st [])
+
+  -- Single-entry success construction produces a success result with a
+  -- pre-computed log entry, incrementing the event counter to maintain
+  -- timestamp consistency.
+  mkSuccessWithLog : ∀ {A} → A → State → LogEntry → AVMResult A
+  mkSuccessWithLog value st entry =
+    let st' = incrementEventCounter st
+    in success (mkSuccess value st' (entry ∷ []))
+
+  -- Event-based success construction produces a success result by first
+  -- computing a log entry from an event type, then incrementing the event
+  -- counter and constructing the success value with the generated log entry.
+  mkSuccessWithEvent : ∀ {A} → A → State → EventType → AVMResult A
+  mkSuccessWithEvent value st eventType =
+    let entry = makeLogEntry eventType st
+        st' = incrementEventCounter st
+    in success (mkSuccess value st' (entry ∷ []))
+```
+
 #### Read Set Tracking and Validation
 
 Observation status checking determines whether an object identifier is present
@@ -369,11 +475,7 @@ snapshot isolation semantics.
 
 ```agda
   containsObserved : ObjectId → List ObjectId → Bool
-  containsObserved oid [] = false
-  containsObserved oid (oid' ∷ rest)
-      with eqObjectId oid oid'
-  ... | true  = true
-  ... | false = containsObserved oid rest
+  containsObserved oid = any (eqObjectId oid)
 ```
 
 The ensure-observed operation conditionally adds an object to the read set if
@@ -381,10 +483,10 @@ not already present, maintaining the transaction's observability invariants.
 
 ```agda
   ensureObserved : ObjectId → ObjectMeta → State → State
-  ensureObserved oid meta st =
-    if containsObserved oid (State.observed st)
-    then st
-    else record st { observed = (State.observed st) ++ (oid ∷ []) }
+  ensureObserved oid meta st
+    with containsObserved oid (State.observed st)
+  ...  | true = st
+  ...  | false = record st { observed = (State.observed st) ++ (oid ∷ []) }
 ```
 
 Create set membership checking is performed during transaction validation to
@@ -392,10 +494,7 @@ determine whether an object identifier corresponds to a pending creation.
 
 ```agda
   inCreates : ObjectId → List RuntimeObjectWithId → Bool
-  inCreates oid [] = false
-  inCreates oid ((oid' , _ , _) ∷ rest) with eqObjectId oid oid'
-  ... | true  = true
-  ... | false = inCreates oid rest
+  inCreates oid = any (λ { (oid' , _ , _) → eqObjectId oid oid' })
 ```
 
 Destroy set membership checking verifies whether an object identifier is
@@ -403,10 +502,7 @@ scheduled for deletion within the current transaction.
 
 ```agda
   inDestroys : ObjectId → List ObjectId → Bool
-  inDestroys oid [] = false
-  inDestroys oid (oid' ∷ rest) with eqObjectId oid oid'
-  ... | true  = true
-  ... | false = inDestroys oid rest
+  inDestroys oid = any (eqObjectId oid)
 ```
 
 Read set validation ensures that all observed objects remain present in the
@@ -415,23 +511,61 @@ guarantees.
 
 ```agda
   validateObserved : State → Bool
-  validateObserved st = checkAll (State.observed st)
+  validateObserved st = all checkObject (State.observed st)
     where
-      checkAll : List ObjectId → Bool
-      checkAll [] = true
-      checkAll (oid ∷ rest) with inCreates oid (State.creates st)
-      ... | true  = checkAll rest
-      ... | false with Store.metadata (State.store st) oid
-      ...   | nothing = false
-      ...   | just meta = checkAll rest
+      checkObject : ObjectId → Bool
+      checkObject oid =
+        if inCreates oid (State.creates st)
+        then true
+        else caseMaybe (Store.metadata (State.store st) oid) (λ _ → true) false
 ```
 
 Ownership validation verifies that an object is currently owned by the executing
 controller, enforcing single-controller transaction semantics.
 
 ```agda
-  checkOwnership : ObjectId → ObjectMeta → State → Bool
-  checkOwnership oid meta st = ObjectMeta.currentController meta == State.controllerId st
+  -- Old checkOwnership removed - use checkOwnershipPure and resolveTxController instead
+```
+
+Controller resolution helpers enable transaction-scoped controller management with
+deferred resolution. These functions separate pure validation from side-effectful
+resolution.
+
+```agda
+  -- Pure ownership check: does object controller match transaction controller?
+  checkOwnershipPure : ObjectId → ObjectMeta → Maybe ControllerId → Bool
+  checkOwnershipPure oid meta txController =
+    caseMaybe (ObjectMeta.currentController meta)
+      (λ objCid → caseMaybe txController
+                   (λ txCid → eqControllerId objCid txCid)
+                   false)
+      false
+
+  -- Resolve transaction controller from object if deferred
+  resolveTxController : ObjectId → ObjectMeta → State → AVMResult State
+  resolveTxController oid meta st =
+    caseMaybe (State.tx st)
+      (λ txid →
+        caseMaybe (State.txController st)
+          (λ _ → success (mkSuccess st st []))  -- Already resolved
+          -- Need to resolve
+          (caseMaybe (ObjectMeta.currentController meta)
+            (λ objCid →
+              let st' = record st { txController = just objCid }
+              in success (mkSuccess st' st' []))
+            (failure (err-object-has-no-controller oid))))
+      (success (mkSuccess st st []))  -- No transaction
+
+  -- Combined: resolve then validate
+  resolveAndCheckOwnership : ObjectId → ObjectMeta → State → AVMResult (State × Bool)
+  resolveAndCheckOwnership oid meta st with resolveTxController oid meta st
+  ... | failure err = failure err
+  ... | success res with Success.value res
+  ...   | st' with checkOwnershipPure oid meta (State.txController st')
+  ...     | true = success (mkSuccess (st' , true) st' [])
+  ...     | false =
+      let cid = caseMaybe (ObjectMeta.currentController meta) (λ c → c) (mkControllerId "unknown")
+      in failure (err-cross-controller-tx oid cid)
 ```
 
 #### Transaction Commitment Operations
@@ -440,8 +574,8 @@ Transaction commit atomically applies all pending changes from the transaction
 overlay to the persistent Store (this goes to the assigned controller). With
 this commit protocol, we aim to ensure ACID properties: atomicity
 (all-or-nothing), consistency (valid state transitions backed by an controller),
-isolation (uncommitted changes invisible to other controllers), and durability (committed changes
-persist).
+isolation (uncommitted changes invisible to other controllers), and durability 
+(committed changes persist).
 
 **Commit sequence:** Changes apply in dependency order to ensure referential integrity:
 
@@ -468,9 +602,10 @@ object's history, permanently recording the communication.
 
 ```agda
   applyWrite : ObjectId → Input → State → State
-  applyWrite oid inp st with Store.metadata (State.store st) oid
-  ... | nothing = st
-  ... | just meta =
+  applyWrite oid inp st 
+    with Store.metadata (State.store st) oid
+  ...  | nothing   = st
+  ...  | just meta =
     let newHistory = ObjectMeta.history meta ++ (inp ∷ [])
         meta' = mkMeta oid newHistory
                   (ObjectMeta.machine meta)
@@ -495,12 +630,17 @@ metadata from the global store, ensuring complete cleanup.
 ```agda
   applyDestroy : ObjectId → State → State
   applyDestroy oid st =
+    let store = State.store st in
     record st {
-      store = record (State.store st) {
-        objects = λ oid' → if eqObjectId oid oid' then nothing
-                          else Store.objects (State.store st) oid'
-        ; metadata = λ oid' → if eqObjectId oid oid' then nothing
-                             else Store.metadata (State.store st) oid'
+      store = record store {
+        objects = λ oid' → 
+          if eqObjectId oid oid' 
+          then nothing
+          else Store.objects store oid'
+        ; metadata = λ oid' → 
+          if eqObjectId oid oid' 
+          then nothing
+          else Store.metadata store oid'
       }
     }
 ```
@@ -520,7 +660,7 @@ Applying a transfer updates the current controller field in object metadata.
   applyTransfer : (ObjectId × ControllerId) → State → State
   applyTransfer (oid , targetCid) st with lookupObjectWithMeta oid st
   ... | nothing = st
-  ... | just (obj , meta) = updateMeta oid (record meta { currentController = targetCid }) st
+  ... | just (obj , meta) = updateMeta oid (record meta { currentController = just targetCid }) st
 ```
 
 Batch transfer application commits all pending ownership modifications,
@@ -549,13 +689,20 @@ values according to the object's implementation.
           meta' = record meta { history = currentHistory }
           st' = updateMeta oid meta' st
 
+          -- Determine the controller for the object execution context
+          -- Use object's controller, or transaction controller, or make a dummy one
+          effectiveController = caseMaybe (ObjectMeta.currentController meta)
+                                         (λ cid → cid)
+                                         (caseMaybe (State.txController st)
+                                                   (λ cid → cid)
+                                                   (mkControllerId "ambient"))
+
           -- Create isolated execution context for the object
           objectContext = record st' {
               self = oid
               ; input = inp
               ; sender = just (State.self st)
               ; machineId = ObjectMeta.machine meta
-              ; controllerId = ObjectMeta.currentController meta
             }
       in handleCall-aux currentHistory meta' st' (interpretAVMProgram (getBehavior obj) objectContext) (State.tx st)
       where
@@ -611,41 +758,55 @@ object's initial state and ownership.
 
 ```agda
     callObjInTx : ObjectId → Input → State → ObjectBehaviour → ObjectMeta → AVMResult (Maybe Output)
-    callObjInTx oid inp st obj meta with checkOwnership oid meta st
-    ... | false = failure (err-cross-controller-tx oid (ObjectMeta.currentController meta))
-    ... | true = handleCall oid inp (ensureObserved oid meta st) obj meta
+    callObjInTx oid inp st obj meta with resolveAndCheckOwnership oid meta st
+    ... | failure err = failure err
+    ... | success res with Success.value res
+    ...   | (st' , false) =
+      -- At this point txController should be set, use object's controller for error
+      let cid = caseMaybe (ObjectMeta.currentController meta) (λ c → c) (mkControllerId "unknown")
+      in failure (err-cross-controller-tx oid cid)
+    ...   | (st' , true) = handleCall oid inp (ensureObserved oid meta st') obj meta
 
     transferObjInTx : ObjectId → ControllerId → ObjectMeta → State → AVMResult Bool
-    transferObjInTx oid targetCid meta st with checkOwnership oid meta st
-    ... | false = failure (err-cross-controller-tx oid (ObjectMeta.currentController meta))
-    ... | true =
-      let stObs = ensureObserved oid meta st
+    transferObjInTx oid targetCid meta st with resolveAndCheckOwnership oid meta st
+    ... | failure err = failure err
+    ... | success res with Success.value res
+    ...   | (stResolved , false) =
+      let cid = caseMaybe (ObjectMeta.currentController meta) (λ c → c) (mkControllerId "unknown")
+      in failure (err-cross-controller-tx oid cid)
+    ...   | (stResolved , true) =
+      let stObs = ensureObserved oid meta stResolved
+          sourceCid = caseMaybe (State.txController stResolved) (λ c → c) (mkControllerId "unknown")
           st' = incrementEventCounter (addPendingTransfer oid targetCid stObs)
-          entry = makeLogEntry (ObjectTransferred oid (State.controllerId st) targetCid) st
+          entry = makeLogEntry (ObjectTransferred oid sourceCid targetCid) stObs
       in success (mkSuccess true st' (entry ∷ []))
 
     transferObjNoTx : ObjectId → ControllerId → ObjectMeta → State → AVMResult Bool
-    transferObjNoTx oid targetCid meta st with checkOwnership oid meta st
-    ... | false = failure (err-cross-controller-tx oid (ObjectMeta.currentController meta))
-    ... | true =
-      let meta' = record meta { currentController = targetCid }
+    transferObjNoTx oid targetCid meta st with ObjectMeta.currentController meta
+    ... | nothing = failure (err-object-has-no-controller oid)
+    ... | just sourceCid =
+      let meta' = record meta { currentController = just targetCid }
           st' = incrementEventCounter (updateMeta oid meta' st)
-          entry = makeLogEntry (ObjectTransferred oid (State.controllerId st) targetCid) st
+          entry = makeLogEntry (ObjectTransferred oid sourceCid targetCid) st
       in success (mkSuccess true st' (entry ∷ []))
 
     destroyObjInTx : ObjectId → ObjectMeta → State → AVMResult Bool
-    destroyObjInTx oid meta st with checkOwnership oid meta st
-    ... | false = failure (err-cross-controller-tx oid (ObjectMeta.currentController meta))
-    ... | true =
-      let stObs = ensureObserved oid meta st
+    destroyObjInTx oid meta st with resolveAndCheckOwnership oid meta st
+    ... | failure err = failure err
+    ... | success res with Success.value res
+    ...   | (stResolved , false) =
+      let cid = caseMaybe (ObjectMeta.currentController meta) (λ c → c) (mkControllerId "unknown")
+      in failure (err-cross-controller-tx oid cid)
+    ...   | (stResolved , true) =
+      let stObs = ensureObserved oid meta stResolved
           st' = incrementEventCounter (addPendingDestroy oid stObs)
-          entry = makeLogEntry (ObjectDestroyed oid) st
+          entry = makeLogEntry (ObjectDestroyed oid) stObs
       in success (mkSuccess true st' (entry ∷ []))
 
     destroyObjNoTx : ObjectId → ObjectMeta → State → AVMResult Bool
-    destroyObjNoTx oid meta st with checkOwnership oid meta st
-    ... | false = failure (err-cross-controller-tx oid (ObjectMeta.currentController meta))
-    ... | true =
+    destroyObjNoTx oid meta st with ObjectMeta.currentController meta
+    ... | nothing = failure (err-object-has-no-controller oid)
+    ... | just _ =
       let st' = incrementEventCounter (record st {
                   store = record (State.store st) {
                     objects = λ oid' → if eqObjectId oid oid' then nothing
@@ -657,21 +818,8 @@ object's initial state and ownership.
       in success (mkSuccess true st' (entry ∷ []))
 
     executeObj : ∀ {s A} → ObjInstruction s A → State → AVMResult A
-    executeObj (createObj behaviorName) st with State.tx st
-    ... | nothing =
-      let oid = freshObjectId (State.eventCounter st) in
-      let obj = interpretBehaviorName behaviorName in
-      let meta = initMeta oid (State.machineId st) (State.controllerId st) in
-      let entry = makeLogEntry (ObjectCreated oid behaviorName) st in
-      let st' = incrementEventCounter (createWithMeta obj meta st) in
-      success (mkSuccess oid st' (entry ∷ []))
-    ... | just _ =
-      let oid = freshObjectId (State.eventCounter st) in
-      let obj = interpretBehaviorName behaviorName in
-      let meta = initMeta oid (State.machineId st) (State.controllerId st) in
-      let entry = makeLogEntry (ObjectCreated oid behaviorName) st in
-      let st' = incrementEventCounter (addPendingCreate oid obj meta st) in
-      success (mkSuccess oid st' (entry ∷ []))
+    executeObj (createObj behaviorName mController) st =
+      withCreateTxBranch behaviorName mController st
 ```
 
 Object destruction either performs immediate removal from the store (when
@@ -732,14 +880,14 @@ execution.
 
 ```agda
     executeIntrospect : ∀ {s A} → IntrospectInstruction s A → State → AVMResult A
-    executeIntrospect self st = success (mkSuccess (State.self st) st [])
+    executeIntrospect self st = mkSuccessNoTrace (State.self st) st
 ```
 
 The `input` instruction retrieves the current input message from the execution
 context, providing access to the invocation argument.
 
 ```agda
-    executeIntrospect input st = success (mkSuccess (State.input st) st [])
+    executeIntrospect input st = mkSuccessNoTrace (State.input st) st
 ```
 
 The `getCurrentMachine` instruction retrieves the physical machine identifier
@@ -747,7 +895,7 @@ from the execution context, indicating the hardware node executing the current
 computation.
 
 ```agda
-    executeIntrospect getCurrentMachine st = success (mkSuccess (State.machineId st) st [])
+    executeIntrospect getCurrentMachine st = mkSuccessNoTrace (State.machineId st) st
 ```
 
 The `history` instruction retrieves the complete accumulated input history of
@@ -759,7 +907,7 @@ transaction scope.
     ... | nothing = failure (err-object-not-found (State.self st))
     ... | just (obj , meta) =
           let accumulatedHistory = ObjectMeta.history meta ++ pendingInputsFor (State.self st) st
-          in success (mkSuccess accumulatedHistory st [])
+          in mkSuccessNoTrace accumulatedHistory st
 ```
 
 The `sender` instruction retrieves the object identifier of the invoking object,
@@ -767,7 +915,7 @@ returning `nothing` for top-level program execution contexts.
 
 ```agda
     executeIntrospect sender st =
-      success (mkSuccess (State.sender st) st [])
+      mkSuccessNoTrace (State.sender st) st
 ```
 
 #### Reflection Operations
@@ -790,13 +938,13 @@ object location.
 
 ```agda
     executeReflect (scryMeta pred) st =
-      let results = foldr collectMatches [] (allObjectIds st)
+      let results = filterMap matchMeta (allObjectIds st)
       in success (mkSuccess results st [])
       where
-        collectMatches : ObjectId → List (ObjectId × ObjectMeta) → List (ObjectId × ObjectMeta)
-        collectMatches oid acc with Store.metadata (State.store st) oid
-        ... | just meta = if pred meta then (oid , meta) ∷ acc else acc
-        ... | nothing = acc
+        matchMeta : ObjectId → Maybe (ObjectId × ObjectMeta)
+        matchMeta oid with Store.metadata (State.store st) oid
+        ... | just meta = if pred meta then just (oid , meta) else nothing
+        ... | nothing = nothing
 ```
 
 Deep scrying extends metadata scrying by applying predicates to both the object
@@ -804,15 +952,15 @@ implementation and its metadata, enabling content-based object discovery.
 
 ```agda
     executeReflect (scryDeep pred) st =
-      let results = foldr collectMatches [] (allObjectIds st)
+      let results = filterMap matchDeep (allObjectIds st)
       in success (mkSuccess results st [])
       where
-        collectMatches : ObjectId → List RuntimeObjectWithId → List RuntimeObjectWithId
-        collectMatches oid acc with Store.objects (State.store st) oid | Store.metadata (State.store st) oid
-        ... | just obj | just meta = if pred obj meta then (oid , obj , meta) ∷ acc else acc
-        ... | just _ | nothing = acc
-        ... | nothing | just _ = acc
-        ... | nothing | nothing = acc
+        matchDeep : ObjectId → Maybe RuntimeObjectWithId
+        matchDeep oid with Store.objects (State.store st) oid | Store.metadata (State.store st) oid
+        ... | just obj | just meta = if pred obj meta then just (oid , obj , meta) else nothing
+        ... | just _ | nothing = nothing
+        ... | nothing | just _ = nothing
+        ... | nothing | nothing = nothing
 ```
 
 #### Reification Operations
@@ -831,7 +979,7 @@ first-class value.
                   (State.input st)
                   (State.sender st)
                   (State.machineId st)
-                  (State.controllerId st)
+                  (caseMaybe (State.txController st) (λ c → c) (mkControllerId "ambient"))
       in success (mkSuccess ctx st [])
 ```
 
@@ -863,22 +1011,28 @@ yet implemented.
 
 #### Transactional Semantics Operations
 
-Transaction initialization allocates a fresh transaction identifier and
-establishes empty transactional overlays for staged operations, creating an
-isolated execution scope.
+Transaction initialization allocates a fresh transaction identifier, locks or
+defers controller authority, and establishes empty transactional overlays for
+staged operations, creating an isolated execution scope.
 
 ```agda
     executeTx : ∀ {s A} → TxInstruction s A → State → AVMResult A
-    executeTx beginTx st =
+    executeTx (beginTx mController) st with caseMaybe mController (λ cid → isReachableController cid) true
+    ... | true =
       let txid = freshTxId (State.eventCounter st)
           st' = incrementEventCounter (record st { tx = just txid
                            ; txLog = []
                            ; creates = []
                            ; destroys = []
                            ; observed = []
+                           ; txController = mController
                            })
           entry = makeLogEntry (TransactionStarted txid) st
       in success (mkSuccess txid st' (entry ∷ []))
+    ... | false =
+      -- mController must be (just cid) since validController is false only if mController is (just unreachableCid)
+      let cid = caseMaybe mController (λ c → c) (mkControllerId "error:should-not-reach")
+      in failure (err-controller-unreachable cid)
 ```
 
 Transaction commitment performs read set validation to ensure serializable
@@ -907,6 +1061,7 @@ transactional overlays to the global store.
                 ; destroys = []
                 ; observed = []
                 ; pendingTransfers = []
+                ; txController = nothing
               })
           entry = makeLogEntry (TransactionCommitted txid) st
       in success (mkSuccess true st' (entry ∷ []))
@@ -925,6 +1080,7 @@ operations performed within the transaction scope.
                 ; destroys = []
                 ; observed = []
                 ; pendingTransfers = []
+                ; txController = nothing
               })
           entry = makeLogEntry (TransactionAborted txid) st
       in success (mkSuccess tt st' (entry ∷ []))
@@ -1048,14 +1204,14 @@ within the system topology, subject to target machine reachability validation.
 Controller instructions manage logical authority assignments and ownership
 relationships within the distributed system.
 
-Current controller retrieval extracts the controller identifier from the
-execution context, indicating the logical authority under which the current
-computation executes.
+Current controller retrieval extracts the transaction controller from the
+execution context. Returns the controller authority under which the current
+transaction executes, or nothing if outside transaction scope.
 
 ```agda
     executeController : ∀ {s A} → ControllerInstruction s A → State → AVMResult A
     executeController getCurrentController st =
-      success (mkSuccess (State.controllerId st) st [])
+      success (mkSuccess (State.txController st) st [])
 ```
 
 Object controller retrieval queries the object's current ownership, consulting
@@ -1064,12 +1220,16 @@ metadata in the global store.
 
 ```agda
     executeController (getController oid) st with lookupPendingCreate oid st
-    ... | just (_ , meta) = success (mkSuccess (just (ObjectMeta.currentController meta)) st [])
-    ... | nothing with lookupPendingTransfer oid st | Store.metadata (State.store st) oid | State.tx st
-    ...   | just cid | _           | _        = success (mkSuccess (just cid) st [])
-    ...   | nothing  | nothing     | _        = success (mkSuccess nothing st [])
-    ...   | nothing  | just meta   | just _   = success (mkSuccess (just (ObjectMeta.currentController meta)) (ensureObserved oid meta st) [])
-    ...   | nothing  | just meta   | nothing  = success (mkSuccess (just (ObjectMeta.currentController meta)) st [])
+    ... | just (_ , meta) with resolveTxController oid meta st
+    ... | failure err = failure err
+    ... | success res = mkSuccessNoTrace (ObjectMeta.currentController meta) (Success.value res)
+    executeController (getController oid) st | nothing with lookupPendingTransfer oid st | Store.metadata (State.store st) oid | State.tx st
+    ... | just cid | _           | _        = mkSuccessNoTrace (just cid) st
+    ... | nothing  | nothing     | _        = mkSuccessNoTrace nothing st
+    ... | nothing  | just meta   | just _   with resolveTxController oid meta st
+    ... | failure err = failure err
+    ... | success res = mkSuccessNoTrace (ObjectMeta.currentController meta) (ensureObserved oid meta (Success.value res))
+    executeController (getController oid) st | nothing | nothing | just meta | nothing = mkSuccessNoTrace (ObjectMeta.currentController meta) st
 ```
 
 Object ownership transfer reassigns an object to a new controller, either
@@ -1083,8 +1243,9 @@ Requirement**: The operation must validate target controller reachability via
       with State.tx st | isReachableController targetCid | lookupPendingCreate oid st | lookupObjectWithMeta oid st
     ... | just _ | false | _      | _              = failure (err-controller-unreachable targetCid)
     ... | just _ | true  | just (obj , meta) | _   =
-      let st' = addPendingTransfer oid targetCid st
-          entry = makeLogEntry (ObjectTransferred oid (State.controllerId st) targetCid) st
+      let sourceCid = caseMaybe (ObjectMeta.currentController meta) (λ c → c) (mkControllerId "unknown")
+          st' = addPendingTransfer oid targetCid st
+          entry = makeLogEntry (ObjectTransferred oid sourceCid targetCid) st
       in success (mkSuccess true st' (entry ∷ []))
     ... | just _ | true  | nothing | just (_ , meta) = transferObjInTx oid targetCid meta st
     ... | just _ | true  | nothing | nothing        = failure (err-object-not-found oid)
@@ -1098,23 +1259,22 @@ for strong consistency. When multiple machines have fetched the same object,
 their states may have diverged. Freeze reconciles these replicas.
 
 ```agda
-    executeController (freeze oid) st
-      with isReachableController (State.controllerId st)
-         | lookupPendingCreate oid st
-         | lookupObjectWithMeta oid st
-    ... | false | _      | _              = failure (err-controller-unreachable (State.controllerId st))
-    ... | true  | just (obj , meta) | _   =
+    executeController (freeze oid) st with caseMaybe (State.txController st) (λ cid → just cid) nothing
+    ... | nothing = failure (err-object-has-no-controller oid)  -- No controller to freeze through
+    ... | just freezeCid with isReachableController freezeCid
+    ... | false = failure (err-controller-unreachable freezeCid)
+    ... | true with lookupPendingCreate oid st | lookupObjectWithMeta oid st
+    ... | just (obj , meta) | _ =
       -- Freeze pending object: synchronize through controller
       let st' = incrementEventCounter st
-          entry = makeLogEntry (ObjectFrozen oid (State.controllerId st)) st
-      in success (mkSuccess true st' (entry ∷ []))
-    ... | true  | nothing | nothing        = failure (err-object-not-found oid)
-    ... | true  | nothing | just (obj , meta) =
+          entry = makeLogEntry (ObjectFrozen oid freezeCid) st
+      in success (mkSuccess (just true) st' (entry ∷ []))
+    ... | nothing | nothing = failure (err-object-not-found oid)
+    ... | nothing | just (obj , meta) =
       -- Freeze existing object: synchronize all replicas through the controller
-      -- Note: Full implementation would reconcile all fetched replicas
       let st' = incrementEventCounter st
-          entry = makeLogEntry (ObjectFrozen oid (State.controllerId st)) st
-      in success (mkSuccess true st' (entry ∷ []))
+          entry = makeLogEntry (ObjectFrozen oid freezeCid) st
+      in success (mkSuccess (just true) st' (entry ∷ []))
 ```
 
 ### Instruction Set Dispatch Semantics

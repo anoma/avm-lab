@@ -16,18 +16,20 @@ This module imports all Agda modules in the project for batch compilation.
 
 module everything where
 
---- AVM ---
-import AVM.Instruction
-import AVM.Interpreter
-import AVM.Context
-
---- Background ---
+-- Background ---
 import Background.BasicTypes
 import Background.InteractionTrees
-import Background.Objects
 import Background.StatelessObjects
 
---- Examples ---
+-- AVM ---
+import AVM.Context
+import AVM.Instruction
+import AVM.Interpreter
+
+-- Examples ---
+import examples.Battleship.Game
+import examples.Battleship.PlayerBoard
+import examples.Battleship.Runner
 import examples.PingPong.Main
 import examples.PingPong.Runner
 import examples.RunnerUtilities

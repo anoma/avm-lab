@@ -19,7 +19,32 @@ open import Background.BasicTypes
 open import Background.InteractionTrees as IT hiding (_>>=_)
 open import examples.PingPong.Main as PP
 open import examples.RunnerUtilities hiding (initialState)
+open import examples.Common.Equality
+```
 
+## Display Functions
+
+Display helper functions convert Ping-Pong protocol-specific value types to
+human-readable string representations, enabling trace output and result
+formatting for the interactive protocol demonstration.
+
+```agda
+showOid : PP.ObjectId → String
+showOid (_ , id) = id
+
+{-# TERMINATING #-}
+showValAgda : PP.Val → String
+showValAgda (PP.VInt n) = "(VInt " ++ˢ showNat n ++ˢ ")"
+showValAgda (PP.VString s) = "\"" ++ˢ s ++ˢ "\""
+showValAgda (PP.VList []) = "[]"
+showValAgda (PP.VList (x ∷ xs)) = showValAgda x ++ˢ " :: " ++ˢ showValAgda (PP.VList xs)
+showValAgda (PP.VPingPongMsg record { msgType = PP.Ping ; counter = c }) =
+  "(VPingPongMsg Ping " ++ˢ showNat c ++ˢ ")"
+showValAgda (PP.VPingPongMsg record { msgType = PP.Pong ; counter = c }) =
+  "(VPingPongMsg Pong " ++ˢ showNat c ++ˢ ")"
+```
+
+```agda
 -- Fresh ID generators
 freshObjectId : ℕ → PP.ObjectId
 freshObjectId n = ("node1" , "obj-" ++ˢ showNat n)
@@ -52,16 +77,6 @@ eqObjectId (node1 , id1) (node2 , id2) =
 eqTxId : PP.TxId → PP.TxId → Bool
 eqTxId = _==ℕ_
 
--- Equality for String
-eqString : String → String → Bool
-eqString s1 s2 = caseMaybe (s1 ≟-string s2) (λ _ → true) false
-
--- Equality for Bool
-eqBool : Bool → Bool → Bool
-eqBool true true = true
-eqBool false false = true
-eqBool _ _ = false
-
 -- Concrete implementation of ObjectBehaviour type
 -- ObjectBehaviour is concretely defined as AVMProgram (List Val)
 -- We use a named reference approach: String names map to concrete AVMProgram values
@@ -70,13 +85,12 @@ data ObjectBehaviourImpl : Set where
 
 -- Now open the AVM.Interpreter module with ObjectBehaviourImpl to get AVMProgram types
 open import AVM.Interpreter PP.Val PP.ObjectId freshObjectId PP.MachineId PP.ControllerId PP.TxId freshTxId ObjectBehaviourImpl
+open import examples.Common.StateInit PP.Val PP.ObjectId PP.MachineId PP.ControllerId PP.TxId ObjectBehaviourImpl
+open import examples.Common.Display PP.Val PP.ObjectId PP.TxId PP.ControllerId PP.MachineId ObjectBehaviourImpl showValAgda showOid showNat (λ s → s) (λ s → s) hiding (showNat)
 
 -- Reachability predicates
-isReachableController : PP.ControllerId → Bool
-isReachableController _ = true
-
-isReachableMachine : PP.MachineId → Bool
-isReachableMachine _ = true
+eqControllerId : PP.ControllerId → PP.ControllerId → Bool
+eqControllerId = eqString
 
 -- Use message type from Main module
 open PP using (MessageType; Ping; Pong)
@@ -137,6 +151,9 @@ getBehavior (namedBehaviour "ping") = pingBehaviorImpl
 getBehavior (namedBehaviour "pong") = pongBehaviorImpl
 getBehavior (namedBehaviour _) = ret []  -- Default: empty behavior
 
+mkControllerId : String → PP.ControllerId
+mkControllerId s = s
+
 -- Instantiate the interpreter with type-specific equality functions
 -- This replaces the broken generic equality with proper implementations
 module RunnerInterpreter where
@@ -146,10 +163,10 @@ module RunnerInterpreter where
     interpretAVMProgramRec : ∀ {A} → AVMProgram A → State → AVMResult A
     interpretAVMProgramRec = interp.interpretAVMProgram
       where
-        module interp = Interpreter eqObjectId eqTxId allObjectIds interpretBehaviorName getBehavior isReachableController isReachableMachine interpretAVMProgramRec
+        module interp = Interpreter eqObjectId eqTxId eqControllerId allObjectIds interpretBehaviorName getBehavior (isReachableController {PP.ControllerId}) (isReachableMachine {PP.MachineId}) mkControllerId interpretAVMProgramRec
 
     -- Now open the interpreter with the recursive reference
-    open Interpreter eqObjectId eqTxId allObjectIds interpretBehaviorName getBehavior isReachableController isReachableMachine interpretAVMProgramRec public
+    open Interpreter eqObjectId eqTxId eqControllerId allObjectIds interpretBehaviorName getBehavior (isReachableController {PP.ControllerId}) (isReachableMachine {PP.MachineId}) mkControllerId interpretAVMProgramRec public
 
 open RunnerInterpreter public
 ```
@@ -157,89 +174,17 @@ open RunnerInterpreter public
 ## Initial Execution State Configuration
 
 ```agda
-emptyStore : Store
-emptyStore = mkStore (λ _ → nothing) (λ _ → nothing)
-
-noPureFunctions : PureFunctions
-noPureFunctions = λ _ → nothing
-
 initialState : State
-initialState = record
-  { machineId = "node1"
-  ; controllerId = "root"
-  ; store = emptyStore
-  ; pureFunctions = noPureFunctions
-  ; txLog = []
-  ; creates = []
-  ; destroys = []
-  ; observed = []
-  ; pendingTransfers = []
-  ; tx = nothing
-  ; self = ("root", "orchestrator")
-  ; input = VString ""
-  ; sender = nothing
-  ; traceMode = false
-  ; eventCounter = 0
-  }
+initialState = mkInitialState "node1" ("root", "orchestrator") (VString "")
 ```
 
 ## Observability and Rendering Infrastructure
 
+Standard display functions for event types, log entries, traces, and execution
+results are provided by the `examples.Common.Display` module, which was imported
+earlier with protocol-specific value display functions.
+
 ```agda
-{-# TERMINATING #-}
-showValAgda : PP.Val → String
-showValAgda (PP.VInt n) = "(VInt " ++ˢ showNat n ++ˢ ")"
-showValAgda (PP.VString s) = "\"" ++ˢ s ++ˢ "\""
-showValAgda (PP.VList []) = "[]"
-showValAgda (PP.VList (x ∷ xs)) = showValAgda x ++ˢ " :: " ++ˢ showValAgda (PP.VList xs)
-showValAgda (PP.VPingPongMsg record { msgType = PP.Ping ; counter = c }) =
-  "(VPingPongMsg Ping " ++ˢ showNat c ++ˢ ")"
-showValAgda (PP.VPingPongMsg record { msgType = PP.Pong ; counter = c }) =
-  "(VPingPongMsg Pong " ++ˢ showNat c ++ˢ ")"
-
-showError : AVMError → String
-showError _ = "execution-error"
-
--- Extract object ID string for display
-showOid : PP.ObjectId → String
-showOid (_ , id) = id
-
--- Display EventType
-showEventType : EventType → String
-showEventType (ObjectCreated oid behaviorName) = "ObjectCreated(" ++ˢ showOid oid ++ˢ ", \"" ++ˢ behaviorName ++ˢ "\")"
-showEventType (ObjectDestroyed oid) = "ObjectDestroyed(" ++ˢ showOid oid ++ˢ ")"
-showEventType (ObjectCalled oid inp mOut) =
-  "ObjectCalled(" ++ˢ showOid oid ++ˢ ", " ++ˢ showValAgda inp ++ˢ
-  caseMaybe mOut (λ out → " -> " ++ˢ showValAgda out) "" ++ˢ ")"
-showEventType (MessageReceived oid inp) = "MessageReceived(" ++ˢ showOid oid ++ˢ ", " ++ˢ showValAgda inp ++ˢ ")"
-showEventType (ObjectMoved oid from to) = "ObjectMoved(" ++ˢ showOid oid ++ˢ ", " ++ˢ from ++ˢ " -> " ++ˢ to ++ˢ ")"
-showEventType (ExecutionMoved from to) = "ExecutionMoved(" ++ˢ from ++ˢ " -> " ++ˢ to ++ˢ ")"
-showEventType (ObjectFetched oid mid) = "ObjectFetched(" ++ˢ showOid oid ++ˢ ", " ++ˢ mid ++ˢ ")"
-showEventType (ObjectTransferred oid fromCtrl toCtrl) = "ObjectTransferred(" ++ˢ showOid oid ++ˢ ", " ++ˢ fromCtrl ++ˢ " -> " ++ˢ toCtrl ++ˢ ")"
-showEventType (ObjectFrozen oid ctrl) = "ObjectFrozen(" ++ˢ showOid oid ++ˢ ", " ++ˢ ctrl ++ˢ ")"
-showEventType (FunctionUpdated name) = "FunctionUpdated(" ++ˢ name ++ˢ ")"
-showEventType (TransactionStarted txid) = "TransactionStarted(" ++ˢ showNat txid ++ˢ ")"
-showEventType (TransactionCommitted txid) = "TransactionCommitted(" ++ˢ showNat txid ++ˢ ")"
-showEventType (TransactionAborted txid) = "TransactionAborted(" ++ˢ showNat txid ++ˢ ")"
-showEventType (ErrorOccurred err) = "ErrorOccurred(...)"
-
--- Display LogEntry
-showLogEntry : LogEntry → String
-showLogEntry entry =
-  "[" ++ˢ showNat (LogEntry.timestamp entry) ++ˢ "] " ++ˢ
-  showEventType (LogEntry.eventType entry) ++ˢ
-  " @" ++ˢ LogEntry.executingController entry
-
--- Display Trace
-showTrace : Trace → String
-showTrace [] = "(no events)"
-showTrace trace = foldr (λ entry acc → showLogEntry entry ++ˢ "\n" ++ˢ acc) "" trace
-
-showResult : ∀ {A} → (A → String) → AVMResult A → String
-showResult showA (failure err) = "Error: " ++ˢ showError err
-showResult showA (success res) =
-  "Success: " ++ˢ showA (Success.value res) ++ˢ "\n\n" ++ˢ
-  "Trace:\n" ++ˢ showTrace (Success.trace res)
 ```
 
 ## Execution Harness Implementation
@@ -253,7 +198,7 @@ invoking the behavioral functions.
 ```agda
 testSimple : AVMProgram PP.Val
 testSimple =
-  IT._>>=_ (trigger (obj-create "pong")) λ pongId →
+  IT._>>=_ (trigger (obj-create "pong" nothing)) λ pongId →
   let msg = PP.VPingPongMsg (PP.mkMsg PP.Ping 0 pongId 1)
   in IT._>>=_ (trigger (obj-call pongId msg)) λ mResult →
      caseMaybe mResult
@@ -262,9 +207,9 @@ testSimple =
 
 test : AVMProgram PP.Val
 test =
-  IT._>>=_ (trigger (Tx beginTx)) λ txid →
-  IT._>>=_ (trigger (obj-create "pong")) λ pongId →
-  IT._>>=_ (trigger (obj-create "ping")) λ pingId →
+  IT._>>=_ (trigger (Tx (beginTx nothing))) λ txid →
+  IT._>>=_ (trigger (obj-create "pong" nothing)) λ pongId →
+  IT._>>=_ (trigger (obj-create "ping" nothing)) λ pingId →
   IT._>>=_ (trigger (Tx (commitTx txid))) λ _ →
   let initialMsg = PP.VPingPongMsg (PP.mkMsg PP.Ping 0 pongId 5)
   in IT._>>=_ (trigger (obj-call pingId initialMsg)) λ mResult →

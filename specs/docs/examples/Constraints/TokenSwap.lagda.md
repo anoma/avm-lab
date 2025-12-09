@@ -94,7 +94,7 @@ computeReceived offered rate = {!!}  -- (offered * numerator) / denominator
 -- Create swap intent using nondeterminism instructions
 createSwapIntent : SwapIntent → AVMProgram Bool
 createSwapIntent intent =
-  trigger tx-begin >>= λ txId →
+  trigger (tx-begin nothing) >>= λ txId →
   -- Choose exchange rate nondeterministically (commit-time choice)
   -- The actual selection is DEFERRED until commit
   let rateOptions = SwapIntent.acceptableRates intent in
@@ -118,7 +118,7 @@ createSwapIntent intent =
 -- Match two swap intents
 matchSwapIntents : SwapIntent → SwapIntent → AVMProgram (Maybe ExchangeRate)
 matchSwapIntents intentA intentB =
-  trigger tx-begin >>= λ txId →
+  trigger (tx-begin nothing) >>= λ txId →
   -- Find overlapping acceptable rates
   let commonRates = intersection
         (SwapIntent.acceptableRates intentA)

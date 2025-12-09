@@ -17,8 +17,8 @@ The AVM Lab constitutes a comprehensive compendium of formal specifications for 
   1. [Examples](examples/index.md) — Annotated executable examples demonstrating AVM architectural concepts and programming patterns.
 
 1. **Background**
-  1. [Interaction Trees](Foundation/InteractionTrees.lagda.md) — Coinductive formalization for modeling computational effects and behavioral semantics.
-  1. [Sequential Objects](AVM/Objects.lagda.md) — Abstract object model formalization wherein objects `φ : I* ⇀ O` constitute partial functions mapping input sequences to output sequences.
+  1. [Interaction Trees](Background/InteractionTrees.lagda.md) — Coinductive formalization for modeling computational effects and behavioral semantics.
+  1. [Sequential Objects](Background/Objects.lagda.md) — Abstract object model formalization wherein objects `φ : I* ⇀ O` constitute partial functions mapping input sequences to output sequences.
 
 1. **Reference Materials**
   1. [Appendix: Semantics and Event Architecture](appendix.md) — Supplementary material on semantic foundations and event-driven architectural patterns.

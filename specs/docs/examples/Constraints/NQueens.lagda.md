@@ -83,7 +83,7 @@ searchSolution : List VarId → AVMProgram (List Val)
 searchSolution [] = ret []
 searchSolution (v ∷ vs) =
   -- Begin transaction for potential backtracking
-  trigger tx-begin >>= λ txId →
+  trigger (tx-begin nothing) >>= λ txId →
   -- Label variable (call-time choice - value selected immediately)
   trigger (FD (label v)) >>= λ val →
   -- Recursively solve for remaining queens

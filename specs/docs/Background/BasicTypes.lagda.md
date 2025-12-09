@@ -596,6 +596,44 @@ all p [] = true
 all p (x ∷ xs) = (p x) ∧ (all p xs)
 ```
 
+Check if any element satisfies a predicate:
+
+```agda
+any : {A : Set} → (A → Bool) → List A → Bool
+any p [] = false
+any p (x ∷ xs) = p x || any p xs
+```
+
+Find first element satisfying a predicate:
+
+```agda
+find : {A : Set} → (A → Bool) → List A → Maybe A
+find p [] = nothing
+find p (x ∷ xs) with p x
+... | true  = just x
+... | false = find p xs
+```
+
+Lookup value in association list (key-value pairs) using custom equality:
+
+```agda
+lookup : {A B : Set} → (A → A → Bool) → A → List (A × B) → Maybe B
+lookup eq key [] = nothing
+lookup eq key ((k , v) ∷ rest) with eq key k
+... | true  = just v
+... | false = lookup eq key rest
+```
+
+Filter and map combined - apply a Maybe-producing function and keep Just results:
+
+```agda
+filterMap : {A B : Set} → (A → Maybe B) → List A → List B
+filterMap f [] = []
+filterMap f (x ∷ xs) with f x
+... | nothing = filterMap f xs
+... | just y  = y ∷ filterMap f xs
+```
+
 ## Finite Sets
 
 Finite sets model collections of object identifiers and principal names.

@@ -99,11 +99,12 @@ InputSequence = List Input
 Extrinsic metadata managed by the AVM runtime encompasses the object's unique
 identifier, accumulated input history, physical machine location, and controller
 authority assignments. Objects are hosted on machines (representing physical
-computational nodes) and possess ownership relationships with controllers
+computational nodes) and may possess ownership relationships with controllers
 (representing logical authorities responsible for transaction ordering). Each
-object's metadata records its current machine location, the controller that
-created it (immutable provenance), and the controller that currently owns it
-(mutable ownership).
+object's metadata records its current machine location, and optionally the
+controller that created it (immutable provenance) and the controller that
+currently owns it (mutable ownership). Objects may be created without a
+controller, deferring controller assignment until later.
 
 ```agda
 record ObjectMeta : Set where
@@ -116,8 +117,8 @@ record ObjectMeta : Set where
     machine : MachineId                  -- Where object data resides
 
     -- Simplified controller tracking
-    creatingController : ControllerId    -- Who created (immutable)
-    currentController : ControllerId     -- Who controls now
+    creatingController : Maybe ControllerId    -- Who created (immutable, may be nothing at birth)
+    currentController : Maybe ControllerId     -- Who controls now (may be nothing at birth)
 ```
 
 ## Store: Persistent Object Database Abstraction
@@ -188,7 +189,9 @@ modifications executed within a transaction context remain tentative until
 explicit commitment; transaction abortion discards all tentative modifications.
 The AVM runtime maintains a transaction log structure recording pending object
 write operations, object creation operations, object destruction operations, and
-cross-controller object transfer operations.
+cross-controller object transfer operations. Each transaction executes under a
+single controller authority, either specified at transaction initiation or
+resolved from the first accessed object.
 
 ### Agda@TxWrite
 
@@ -249,9 +252,6 @@ record State : Set where
     -- Current execution location
     machineId : MachineId          -- Physical machine executing this program
 
-    -- Current controller identity
-    controllerId : ControllerId
-
     -- Object storage (separated)
     store : Store          -- Combined store with objects and metadata
 
@@ -266,6 +266,7 @@ record State : Set where
     observed : List ObjectId                          -- Read set (for tracking accessed objects)
     pendingTransfers : List (ObjectId × ControllerId) -- Pending object moves
     tx : Maybe TxId                                   -- Active transaction id (if any)
+    txController : Maybe ControllerId                 -- Transaction controller (locked or deferred)
 
     -- Current execution frame
     self : ObjectId           -- Current object being processed
@@ -284,10 +285,6 @@ The Agda@State record organizes fields into five logical groups:
   identity and enables reasoning about data locality and cross-machine
   communication costs.
 
-- Controller context: `controllerId` identifies the executing controller
-  (logical authority). This field enables distributed operations across
-  controller boundaries.
-
 - Persistent storage: `store` holds the object database (both behaviors and
   metadata), and `pureFunctions` maintains the extensible pure function
   registry. These components persist across instruction executions.
@@ -295,8 +292,11 @@ The Agda@State record organizes fields into five logical groups:
 - Transactional overlay: `txLog` accumulates uncommitted writes (object-input
   pairs), `creates` and `destroys` track pending object lifecycle changes,
   `observed` records the read set of accessed objects, `pendingTransfers` queues
-  cross-controller object moves, and `tx` holds the active transaction
-  identifier (or `nothing` if no transaction is active).
+  cross-controller object moves, `tx` holds the active transaction identifier
+  (or `nothing` if no transaction is active), and `txController` tracks the
+  controller for the current transaction (locked immediately via `beginTx` or
+  resolved from the first accessed object). Controllers are transaction-scoped,
+  not global state.
 
 - Execution frame: `self` identifies the currently executing object, `input`
   holds the message being processed, `sender` tracks the calling object's
@@ -410,8 +410,8 @@ data MachineError : Set where
 
 ### Controller Errors
 
-Controller operations fail when logical authorities are unreachable or object
-ownership transfers are unauthorized.
+Controller operations fail when logical authorities are unreachable, object
+ownership transfers are unauthorized, or objects lack controller assignments.
 
 ```agda
 data ControllerError : Set where
@@ -421,6 +421,7 @@ data ControllerError : Set where
   ErrObjectNotAvailable : ObjectId → ControllerError
   ErrObjectNotConsistent : ObjectId → ControllerError
   ErrFreezeFailed : ObjectId → ControllerError
+  ErrObjectHasNoController : ObjectId → ControllerError
 ```
 
 ### Pure Function Errors
@@ -652,6 +653,9 @@ pattern err-object-not-consistent oid =
 
 pattern err-freeze-failed oid =
   controller-error (ErrFreezeFailed oid)
+
+pattern err-object-has-no-controller oid =
+  controller-error (ErrObjectHasNoController oid)
 ```
 
 ### Experimental Instruction Error Patterns
@@ -672,8 +676,8 @@ pattern err-constr-not-implemented msg =
 State transitions generate observable events. The interpreter records object
 creation, destruction, message passing, transaction boundaries, and controller
 operations in a chronological log. Each log entry pairs an event type with a
-timestamp and executing controller identifier. This mechanism supports
-debugging, auditing, and formal verification of execution histories.
+timestamp and optional transaction controller identifier. This mechanism
+supports debugging, auditing, and formal verification of execution histories.
 
 ### Agda@EventType
 
@@ -716,7 +720,7 @@ record LogEntry : Set where
   field
     timestamp : ℕ
     eventType : EventType
-    executingController : ControllerId
+    executingController : Maybe ControllerId
 ```
 
 ### Agda@Trace

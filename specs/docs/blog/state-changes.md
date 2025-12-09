@@ -34,9 +34,9 @@ record Store : Set where
 
 The `State` record captures the current execution context, including:
 
-- **Physical/logical context**: Machine ID, controller ID
+- **Physical context**: Machine ID identifying the physical execution location
 - **Persistent storage**: References to Store and pure function registry
-- **Transaction overlay**: Pending changes (txLog, creates, destroys, observed, pendingTransfers)
+- **Transaction overlay**: Pending changes (txLog, creates, destroys, observed, pendingTransfers, txController)
 - **Execution frame**: Current object, input, sender
 - **Event tracking**: Counter for trace generation
 
@@ -66,6 +66,7 @@ The AVM doesn't immediately modify the persistent Store. Instead, changes accumu
 | `observed` | Read set for conflict detection |
 | `pendingTransfers` | Ownership changes |
 | `tx` | Active transaction ID (or `nothing`) |
+| `txController` | Transaction controller (locked at `beginTx` or resolved from first object) |
 
 **Benefits:**
 
@@ -159,11 +160,12 @@ applyDestroys : List ObjectId → State → State
 
 **Creation** (outside transaction):
 ```agda
-createObj behaviorName st (when State.tx st = nothing) =
+createObj behaviorName mController st (when State.tx st = nothing) =
   -- Immediately install in Store
   let oid = fresh objectId
       obj = resolveBehavior behaviorName
-      meta = mkMeta oid [] controllerId machineId
+      effectiveController = caseMaybe mController (λ c → just c) nothing
+      meta = mkMeta oid [] effectiveController effectiveController machineId
       st' = createWithMeta obj meta st
   in success (mkSuccess oid st' trace)
 ```
@@ -186,10 +188,11 @@ createObj behaviorName st (when State.tx st = just txid) =
 
 **beginTx**:
 ```agda
-executeTx beginTx st =
+executeTx (beginTx mController) st =
   let txid = freshTxId
       st' = record st {
         tx = just txid
+        ; txController = mController  -- Locked or deferred
         ; txLog = []
         ; creates = []
         ; destroys = []
@@ -201,6 +204,7 @@ executeTx beginTx st =
 
 **State changes:**
 - `State.tx`: `nothing` → `just txid`
+- `State.txController`: Set to `mController` (either locked to a controller or deferred with `nothing`)
 - All overlay lists initialized to empty
 
 **commitTx**:
@@ -331,8 +335,8 @@ Pure function registry modifications are **non-transactional**. They take effect
 
 ### Read-Only Operations
 
-- `self`, `input`, `sender`, `getCurrentMachine`, `getCurrentController`
-- `history`, `getMachine`, `getController`
+- `self`, `input`, `sender`, `getCurrentMachine`, `getCurrentController` (returns `Maybe ControllerId` - the transaction controller if in a transaction)
+- `history`, `getMachine`, `getController` (returns `Maybe ControllerId` for the object's controller)
 - `reflect`, `scryMeta`, `scryDeep`
 - `callPure`
 
@@ -418,8 +422,8 @@ State.tx = nothing
 **Execution:**
 ```agda
 do
-  txid ← beginTx
-  oid ← createObj "counter"
+  txid ← beginTx nothing  -- Defer controller resolution
+  oid ← createObj "counter" (just controllerId)
   result ← call oid (Input 0)
   success ← commitTx txid
 ```
@@ -444,8 +448,8 @@ Store.objects(oid1) = just obj1
 **Execution:**
 ```agda
 do
-  txid ← beginTx
-  oid2 ← createObj "temp"
+  txid ← beginTx nothing  -- Defer controller resolution
+  oid2 ← createObj "temp" (just controllerId)
   result ← call oid1 (Input 42)
   abortTx txid
 ```

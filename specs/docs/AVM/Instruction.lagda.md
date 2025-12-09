@@ -177,7 +177,7 @@ communication realized through message-passing semantics.
 -- Object lifecycle and communication
 data ObjInstruction : Safety → ISA where
   -- Object lifecycle
-  createObj : String → ObjInstruction Safe ObjectId
+  createObj : String → Maybe ControllerId → ObjInstruction Safe ObjectId
   destroyObj : ObjectId → ObjInstruction Safe Bool  -- May fail if object doesn't exist
 
   -- Message passing (may fail if object doesn't exist or rejects input)
@@ -277,8 +277,9 @@ Reification enables:
 
 #### Agda@ReifyInstruction Datatype
 
+- Reified execution context (safe subset of State)
+
 ```agda
--- Reified execution context (safe subset of State)
 record ReifiedContext : Set where
   constructor mkReifiedContext
   field
@@ -287,8 +288,11 @@ record ReifiedContext : Set where
     contextSender : Maybe ObjectId
     contextMachine : MachineId
     contextController : ControllerId
+```
 
--- Reified transaction state
+- Reified transaction state
+
+```agda
 record ReifiedTxState : Set where
   constructor mkReifiedTxState
   field
@@ -297,8 +301,11 @@ record ReifiedTxState : Set where
     txStateCreates : List ObjectId
     txStateDestroys : List ObjectId
     txStateObserved : List ObjectId
+```
 
--- Reified constraint store (for FD layer)
+- Reified constraint store (for FD layer)
+
+```agda
 record ReifiedConstraints : Set where
   constructor mkReifiedConstraints
   field
@@ -306,7 +313,9 @@ record ReifiedConstraints : Set where
     constraintVars : List (ℕ × List Val)
     -- Posted constraints (simplified representation)
     constraintCount : ℕ
+```
 
+```agda
 data ReifyInstruction : Safety → ISA where
   -- Safe: reify own execution context
   reifyContext : ReifyInstruction Safe ReifiedContext
@@ -358,7 +367,7 @@ transactional operations for managing atomic execution contexts.
 
 ```agda
 data TxInstruction : Safety → ISA where
-  beginTx : TxInstruction Safe TxId
+  beginTx : Maybe ControllerId → TxInstruction Safe TxId
   commitTx : TxId → TxInstruction Safe Bool      -- May fail if conflicts
   abortTx : TxId → TxInstruction Safe ⊤
 ```
@@ -465,7 +474,7 @@ consistency.
 ```agda
 data ControllerInstruction : Safety → ISA where
   -- Query controller identity and ownership
-  getCurrentController : ControllerInstruction Safe ControllerId
+  getCurrentController : ControllerInstruction Safe (Maybe ControllerId)
   getController : ObjectId → ControllerInstruction Safe (Maybe ControllerId)
 
   -- Transfer object ownership to another controller (changes logical authority)
@@ -473,7 +482,10 @@ data ControllerInstruction : Safety → ISA where
 
   -- Freeze: synchronize all replicas through the controller for strong consistency
   -- When multiple machines have fetched the same object, freeze reconciles their state
-  freeze : ObjectId → ControllerInstruction Safe Bool
+  -- If the object doesn't have a controller, the freeze operation fails with an error.
+  -- The return value is just to indicate whether the freeze operation succeeded or failed.
+  -- If the object doesn't have a controller, the freeze operation returns nothing.
+  freeze : ObjectId → ControllerInstruction Safe (Maybe Bool)
 ```
 
 Authority requirements: Agda@transferObject requires proper authorization. The
@@ -693,7 +705,7 @@ Also, it can be seen as the list of all instructions in the instruction set.
 
 ```agda
 -- Object instruction patterns
-pattern obj-create behaviorName = Obj (createObj behaviorName)
+pattern obj-create behaviorName mcid = Obj (createObj behaviorName mcid)
 pattern obj-destroy oid = Obj (destroyObj oid)
 pattern obj-call oid inp = Obj (call oid inp)
 pattern obj-receive = Obj receive
@@ -716,7 +728,7 @@ pattern do-reify-tx-state = Reify reifyTxState
 pattern do-reify-constraints = Reify reifyConstraints
 
 -- Transaction instruction patterns
-pattern tx-begin = Tx beginTx
+pattern tx-begin mcid = Tx (beginTx mcid)
 pattern tx-commit tid = Tx (commitTx tid)
 pattern tx-abort tid = Tx (abortTx tid)
 
@@ -791,13 +803,22 @@ creation and destruction within the persistent object store.
 #### Agda@createObj
 
 ```text
-createObj : String → ObjInstruction Safe ObjectId
+createObj : String → Maybe ControllerId → ObjInstruction Safe ObjectId
 ```
 
 Creates a new runtime object within the persistent store by referencing a
-behavior name. The Agda@String parameter specifies the behavior name that will
-be resolved by the interpreter to an Agda@ObjectBehaviour (an AVM program). The
-instruction returns a fresh Agda@ObjectId that uniquely identifies the newly
+behavior name. The first Agda@String parameter specifies the behavior name that
+will be resolved by the interpreter to an Agda@ObjectBehaviour (an AVM program).
+The second Agda@Maybe ControllerId parameter optionally specifies the controller
+that should own the object:
+
+- Agda@just controllerId: The object is created with the specified controller as
+  both Agda@creatingController and Agda@currentController
+- Agda@nothing: If within a transaction, the object is created with the
+  transaction's controller. If outside a transaction, the object is created
+  without a controller (both controller fields are Agda@nothing)
+
+The instruction returns a fresh Agda@ObjectId that uniquely identifies the newly
 created runtime object within the global object namespace. Object creation
 exhibits transactional semantics: if the enclosing transaction context aborts,
 the object creation is rolled back and the runtime object does not persist to
@@ -1018,13 +1039,23 @@ modifications within a transaction are tentative until committed.
 #### Agda@beginTx
 
 ```text
-beginTx : TxInstruction Safe TxId
+beginTx : Maybe ControllerId → TxInstruction Safe TxId
 ```
 
-Initiates a new transactional context and returns a fresh transaction
-identifier. All subsequent state modifications are logged to the transaction's
-write-set until the transaction is either committed or aborted. Transactions
-provide atomicity: either all changes succeed or none do.
+Initiates a new transactional context with an optional controller parameter and
+returns a fresh transaction identifier. The controller determines the execution
+context for the transaction:
+
+- Agda@just controllerId: Immediately locks the transaction to the specified
+  controller. All objects accessed must belong to this controller.
+- Agda@nothing: Defers controller selection. The transaction controller is
+  resolved from the first object accessed (via operations like Agda@call,
+  Agda@destroyObj, Agda@transferObject, etc.).
+
+All subsequent state modifications are logged to the transaction's write-set
+until the transaction is either committed or aborted. Transactions provide
+atomicity: either all changes succeed or none do. The single-controller
+invariant ensures all objects in a transaction belong to the same controller.
 
 #### Agda@commitTx
 
@@ -1184,11 +1215,11 @@ code.
 #### Agda@getCurrentController
 
 ```text
-getCurrentController : ControllerInstruction Safe ControllerId
+getCurrentController : ControllerInstruction Safe (Maybe ControllerId)
 ```
 
-Returns the identifier of the controller (logical authority) currently executing
-this program.
+Returns the transaction controller identifier if executing within a transaction,
+or nothing if executing outside transaction scope.
 
 #### Agda@getController
 

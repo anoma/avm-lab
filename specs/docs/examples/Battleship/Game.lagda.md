@@ -27,9 +27,9 @@ Creates a game with two player boards, each with pre-placed ships.
 ```agda
 setupGame : AVMProgram (PB.ObjectId × PB.ObjectId)
 setupGame =
-  trigger tx-begin >>= λ setupTx →
-  trigger (obj-create "PlayerBoard") >>= λ board1 →
-  trigger (obj-create "PlayerBoard") >>= λ board2 →
+  trigger (tx-begin nothing) >>= λ setupTx →
+  trigger (obj-create "PlayerBoard" nothing) >>= λ board1 →
+  trigger (obj-create "PlayerBoard" nothing) >>= λ board2 →
   -- Place ships for player 1
   trigger (obj-call board1 (PB.VShip 0 0 3)) >>= λ _ →
   trigger (obj-call board1 (PB.VShip 2 2 2)) >>= λ _ →
@@ -48,7 +48,7 @@ Players attack each other's boards directly.
 -- Player 1 attacks Player 2's board at coordinate (x, y)
 player1Attack : PB.ObjectId → ℕ → ℕ → AVMProgram (Maybe PB.Val)
 player1Attack board2 x y =
-  trigger tx-begin >>= λ turnTx →
+  trigger (tx-begin nothing) >>= λ turnTx →
   trigger (obj-call board2 (PB.VCoord x y)) >>= λ result →
   trigger (tx-commit turnTx) >>= λ _ →
   ret result
@@ -56,7 +56,7 @@ player1Attack board2 x y =
 -- Player 2 attacks Player 1's board at coordinate (x, y)
 player2Attack : PB.ObjectId → ℕ → ℕ → AVMProgram (Maybe PB.Val)
 player2Attack board1 x y =
-  trigger tx-begin >>= λ turnTx →
+  trigger (tx-begin nothing) >>= λ turnTx →
   trigger (obj-call board1 (PB.VCoord x y)) >>= λ result →
   trigger (tx-commit turnTx) >>= λ _ →
   ret result
@@ -96,7 +96,7 @@ gameWithRollback =
   setupGame >>= λ { (board1 , board2) →
 
   -- Start a turn but abort it
-  trigger tx-begin >>= λ badTurn →
+  trigger (tx-begin nothing) >>= λ badTurn →
   trigger (obj-call board2 (PB.VCoord 1 1)) >>= λ _ →
   trigger (tx-abort badTurn) >>= λ _ →
 

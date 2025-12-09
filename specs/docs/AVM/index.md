@@ -10,7 +10,15 @@ This section collects the formal specification of the Anoma Virtual Machine (AVM
 
 <div class="grid cards" markdown>
 
-- :fontawesome-solid-cube: 1. System Model
+- :fontawesome-solid-book: 1. Background
+
+  ***
+
+  Foundational mathematical concepts including basic types, interaction trees, and object models.
+
+  [:octicons-arrow-right-24: View Page](../Background/index.md)
+
+- :fontawesome-solid-cube: 2. System Model
 
   ***
 
@@ -18,7 +26,7 @@ This section collects the formal specification of the Anoma Virtual Machine (AVM
 
   [:octicons-arrow-right-24: View Page](AVM/SystemModel.md)
 
-- :fontawesome-solid-layer-group: 2. Runtime Context
+- :fontawesome-solid-layer-group: 3. Runtime Context
 
   ***
 
@@ -26,7 +34,7 @@ This section collects the formal specification of the Anoma Virtual Machine (AVM
 
   [:octicons-arrow-right-24: View Page](AVM/Context.md)
 
-- :fontawesome-solid-code: 3. Instruction Set
+- :fontawesome-solid-code: 4. Instruction Set
 
   ***
 
@@ -34,7 +42,7 @@ This section collects the formal specification of the Anoma Virtual Machine (AVM
 
   [:octicons-arrow-right-24: View Page](AVM/Instruction.md)
 
-- :fontawesome-solid-gears: 4. Interpreter
+- :fontawesome-solid-gears: 5. Interpreter
 
   ***
 
@@ -42,7 +50,7 @@ This section collects the formal specification of the Anoma Virtual Machine (AVM
 
   [:octicons-arrow-right-24: View Page](AVM/Interpreter.md)
 
-- :material-road: 5. Runtime Guidance
+- :material-road: 6. Runtime Guidance
 
   ***
 

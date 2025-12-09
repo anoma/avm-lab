@@ -134,7 +134,7 @@ Given two object identifiers and an amount, we define a transfer function:
 ```agda
 kudosTransfer : ObjectId → ObjectId → ℕ → AVMProgram Val
 kudosTransfer fromAcc toAcc amount =
-  trigger (Tx beginTx) >>= λ txId →
+  trigger (Tx (beginTx nothing)) >>= λ txId →
   trigger (Obj(call fromAcc (withdraw amount))) >>= λ mr₁ →
   handleWithdraw txId mr₁
   where
@@ -179,7 +179,7 @@ Creating a new counter object and performing initial operations:
 ```agda
 createCounter : Val → AVMProgram ObjectId
 createCounter initialValue =
-  trigger (Obj(createObj "counter")) >>= λ counterId →
+  trigger (Obj(createObj "counter" nothing)) >>= λ counterId →
   trigger (Obj(call counterId initialValue)) >>= λ _ →
   trigger (Obj(call counterId (VString "increment"))) >>= λ _ →
   ret counterId
