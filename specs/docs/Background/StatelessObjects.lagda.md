@@ -96,7 +96,7 @@ Message = Val
 -- Then instantiate the Instruction module, passing Object from Objects
 -- Hide Input/Output/Message to avoid name collision since Objects already exports them
 open import AVM.Instruction Val ObjectId MachineId ControllerId TxId Object public
-  hiding (Input; Output; Message; history)
+  hiding (Input; Output; Message; getState; setState)
 ```
 
 ## Helper Functions

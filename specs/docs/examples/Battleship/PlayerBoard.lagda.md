@@ -74,21 +74,23 @@ checkHit (v ∷ vs) x y =
 ## Board Behavior
 
 The board behavior responds to two types of messages:
-- Ship placement (VShip): stores the ship in history
+- Ship placement (VShip): stores the ship in state
 - Attack (VCoord): checks if the coordinate hits any ship, returns hit/miss
 
 ```agda
 boardBehavior : AVMProgram (List Val)
 boardBehavior =
   trigger (Introspect input) >>= λ inp →
-  trigger (Introspect history) >>= λ hist →
-  handleInput inp hist
+  trigger (Introspect getState) >>= λ currentState →
+  handleInput inp currentState
   where
     handleInput : Val → List Val → AVMProgram (List Val)
-    handleInput (VShip x y len) hist =
-      ret (VShip x y len ∷ [])
-    handleInput (VCoord x y) hist =
-      if checkHit hist x y
+    handleInput (VShip x y len) currentState =
+      let newState = VShip x y len ∷ currentState in
+      trigger (Introspect (setState newState)) >>= λ _ →
+      ret (VShip x y len ∷ [])  -- Return ship as confirmation
+    handleInput (VCoord x y) currentState =
+      if checkHit currentState x y
       then ret (VCoord x y ∷ [])  -- HIT
       else ret []                  -- MISS
 ```

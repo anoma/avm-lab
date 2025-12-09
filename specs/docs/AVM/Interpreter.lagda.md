@@ -270,12 +270,35 @@ specified object identifier, modifying the store in-place.
     let store = State.store st in
     record st {
       store = record store {
-        metadata = λ oid' → 
-          if eqObjectId oid oid' 
-          then 
+        metadata = λ oid' →
+          if eqObjectId oid oid'
+          then
             just meta
-          else 
+          else
             Store.metadata store oid'
+      }
+    }
+```
+
+State lookup retrieves the internal state for a specified object identifier.
+
+```agda
+  lookupState : ObjectId → State → Maybe (List Val)
+  lookupState oid st = Store.states (State.store st) oid
+```
+
+State update replaces the internal state for a specified object identifier.
+
+```agda
+  updateState : ObjectId → List Val → State → State
+  updateState oid newState st =
+    let store = State.store st in
+    record st {
+      store = record store {
+        states = λ oid' →
+          if eqObjectId oid oid'
+          then just newState
+          else Store.states store oid'
       }
     }
 ```
@@ -293,18 +316,18 @@ simulate the hash map, quite inefficiently.
     let store = State.store st in
     record st {
       store = record store {
-        objects = λ oid' → 
-          if eqObjectId oid oid' 
-          then 
-            just obj 
-          else 
-            Store.objects store oid'
-        ; metadata = λ oid' → 
-            if eqObjectId oid oid' 
-            then 
-              just meta 
-            else 
-              Store.metadata store oid'
+        objects = λ oid' →
+          if eqObjectId oid oid'
+          then just obj
+          else Store.objects store oid'
+        ; metadata = λ oid' →
+            if eqObjectId oid oid'
+            then just meta
+            else Store.metadata store oid'
+        ; states = λ oid' →
+            if eqObjectId oid oid'
+            then just []
+            else Store.states store oid'
       }
     }
 ```
@@ -316,7 +339,7 @@ machine and controller, establishing its initial ownership and placement state.
 
 ```agda
   initMeta : ObjectId → MachineId → Maybe ControllerId → ObjectMeta
-  initMeta oid mid mcid = mkMeta oid [] mid mcid mcid
+  initMeta oid mid mcid = mkMeta oid mid mcid mcid
 ```
 
 Log entry construction records observable events with a monotonically increasing
@@ -581,8 +604,9 @@ isolation (uncommitted changes invisible to other controllers), and durability
 
 1. Agda@applyCreates: Install pending objects (must exist before writes/transfers)
 2. Agda@applyTransfers: Update ownership (establish authority before operations)
-3. Agda@applyWrites: Record input history (communication after ownership)
-4. Agda@applyDestroys: Remove objects (cleanup after all operations)
+3. Agda@applyWrites: Record input messages (for transaction log)
+4. Agda@applyStates: Apply pending state updates
+5. Agda@applyDestroys: Remove objects (cleanup after all operations)
 
 This ordering prevents dangling references and ensures all operations target
 valid objects.
@@ -597,25 +621,17 @@ object creations into the global store, materializing the transactional overlay.
     applyCreates rest (createWithMeta obj meta st)
 ```
 
-Write application updates object metadata by appending the input message to the
-object's history, permanently recording the communication.
+Write application records that an input was sent to an object. State updates
+are now managed explicitly via the `setState` instruction rather than through
+implicit history accumulation.
 
 ```agda
   applyWrite : ObjectId → Input → State → State
-  applyWrite oid inp st 
-    with Store.metadata (State.store st) oid
-  ...  | nothing   = st
-  ...  | just meta =
-    let newHistory = ObjectMeta.history meta ++ (inp ∷ [])
-        meta' = mkMeta oid newHistory
-                  (ObjectMeta.machine meta)
-                  (ObjectMeta.creatingController meta)
-                  (ObjectMeta.currentController meta)
-    in updateMeta oid meta' st
+  applyWrite oid inp st = st  -- State updates happen via setState instruction
 ```
 
 Batch write application commits all pending input messages from the transaction
-log, sequentially updating object histories.
+log.
 
 ```agda
   applyWrites : List (ObjectId × Input) → State → State
@@ -672,10 +688,19 @@ sequentially updating object controller assignments.
   applyTransfers (x ∷ xs) st = applyTransfers xs (applyTransfer x st)
 ```
 
+State application commits all pending state updates from the transaction.
+
+```agda
+  applyStates : List (ObjectId × List Val) → State → State
+  applyStates [] st = st
+  applyStates ((oid , newState) ∷ rest) st =
+    applyStates rest (updateState oid newState st)
+```
+
 #### Object Invocation Semantics
 
 Object invocation executes the object's behavioral program within an isolated
-execution context, processing accumulated input messages and producing output
+execution context, processing the current input message and producing output
 values according to the object's implementation.
 
 ```agda
@@ -683,40 +708,22 @@ values according to the object's implementation.
   mutual
     handleCall : ObjectId → Input → State → ObjectBehaviour → ObjectMeta → AVMResult (Maybe Val)
     handleCall oid inp st obj meta =
-      let -- Update metadata with pending inputs before running behavior
-          pendingInputs = pendingInputsFor oid st
-          currentHistory = ObjectMeta.history meta ++ pendingInputs
-          meta' = record meta { history = currentHistory }
-          st' = updateMeta oid meta' st
-
-          -- Determine the controller for the object execution context
-          -- Use object's controller, or transaction controller, or make a dummy one
-          effectiveController = caseMaybe (ObjectMeta.currentController meta)
-                                         (λ cid → cid)
-                                         (caseMaybe (State.txController st)
-                                                   (λ cid → cid)
-                                                   (mkControllerId "ambient"))
-
-          -- Create isolated execution context for the object
-          objectContext = record st' {
+      let -- Create isolated execution context for the object
+          objectContext = record st {
               self = oid
               ; input = inp
               ; sender = just (State.self st)
               ; machineId = ObjectMeta.machine meta
             }
-      in handleCall-aux currentHistory meta' st' (interpretAVMProgram (getBehavior obj) objectContext) (State.tx st)
+      in handleCall-aux (interpretAVMProgram (getBehavior obj) objectContext) (State.tx st)
       where
-        handleCall-aux : List Input → ObjectMeta → State → AVMResult (List Val) → Maybe TxId → AVMResult (Maybe Val)
-        handleCall-aux currentHistory meta' st' (failure err) _ = failure err
-        handleCall-aux currentHistory meta' st' (success res) (just _) =
+        handleCall-aux : AVMResult (List Val) → Maybe TxId → AVMResult (Maybe Val)
+        handleCall-aux (failure err) _ = failure err
+        handleCall-aux (success res) (just _) =
           -- In transaction: add pending write
           let outputs = Success.value res
               output = if null outputs then nothing else just (head outputs)
               stAfterBehavior = Success.state res
-              finalHistory = currentHistory ++ (inp ∷ [])
-              metaFinal = record meta' {
-                  history = finalHistory
-                }
               stFinal = record stAfterBehavior {
                   -- Restore caller's context
                   self = State.self st
@@ -725,26 +732,21 @@ values according to the object's implementation.
                 }
               stWithPending = addPendingWrite oid inp stFinal
               entry = makeLogEntry (ObjectCalled oid inp output) stWithPending
-              st'' = incrementEventCounter (updateMeta oid metaFinal stWithPending)
+              st'' = incrementEventCounter stWithPending
           in success (mkSuccess output st'' (Success.trace res ++ (entry ∷ [])))
-        handleCall-aux currentHistory meta' st' (success res) nothing =
-          -- Outside transaction: update metadata directly
+        handleCall-aux (success res) nothing =
+          -- Outside transaction: state already updated by behavior via setState
           let outputs = Success.value res
               output = if null outputs then nothing else just (head outputs)
               stAfterBehavior = Success.state res
-              finalHistory = currentHistory ++ (inp ∷ [])
-              metaFinal = record meta' {
-                  history = finalHistory
-                }
               stFinal = record stAfterBehavior {
                   -- Restore caller's context
                   self = State.self st
                   ; input = State.input st
                   ; sender = State.sender st
                 }
-              stWithMeta = updateMeta oid metaFinal stFinal
-              entry = makeLogEntry (ObjectCalled oid inp output) stWithMeta
-              st'' = incrementEventCounter stWithMeta
+              entry = makeLogEntry (ObjectCalled oid inp output) stFinal
+              st'' = incrementEventCounter stFinal
           in success (mkSuccess output st'' (Success.trace res ++ (entry ∷ [])))
 ```
 
@@ -843,9 +845,9 @@ overlay for deferred commitment.
     ... | nothing | nothing | nothing  | _          = failure (err-object-not-found oid)
 ```
 
-Object invocation executes the object's behavioral program with the accumulated
-input history and the new input message, producing output values and potentially
-modifying state.
+Object invocation executes the object's behavioral program with the current
+input message, producing output values and potentially modifying state via the
+`setState` instruction.
 
 ```agda
     executeObj (call oid inp) st with lookupPendingCreate oid st
@@ -898,16 +900,30 @@ computation.
     executeIntrospect getCurrentMachine st = mkSuccessNoTrace (State.machineId st) st
 ```
 
-The `history` instruction retrieves the complete accumulated input history of
-the current object, including both committed and pending inputs within the
-transaction scope.
+The `getState` instruction retrieves the internal state of the current object.
+Returns empty list if state is not found.
 
 ```agda
-    executeIntrospect history st with lookupObjectWithMeta (State.self st) st
-    ... | nothing = failure (err-object-not-found (State.self st))
-    ... | just (obj , meta) =
-          let accumulatedHistory = ObjectMeta.history meta ++ pendingInputsFor (State.self st) st
-          in mkSuccessNoTrace accumulatedHistory st
+    executeIntrospect getState st =
+      let currentState = caseMaybe (lookupState (State.self st) st) (λ s → s) []
+      in mkSuccessNoTrace currentState st
+```
+
+The `setState` instruction updates the internal state of the current object.
+If within a transaction, the state update is queued for commit; otherwise it
+is applied immediately.
+
+```agda
+    executeIntrospect (setState newState) st with State.tx st
+    ... | nothing =
+      -- Outside transaction: update immediately
+      let st' = updateState (State.self st) newState st
+      in mkSuccessNoTrace tt st'
+    ... | just _ =
+      -- Inside transaction: add to pending states
+      let newPending = State.pendingStates st ++ ((State.self st , newState) ∷ [])
+          st' = record st { pendingStates = newPending }
+      in mkSuccessNoTrace tt st'
 ```
 
 The `sender` instruction retrieves the object identifier of the invoking object,
@@ -1050,10 +1066,11 @@ transactional overlays to the global store.
       with validateObserved st
     ...  | false = failure (err-tx-conflict txid)
     ...  | true =
-      let stApplied = applyDestroys (State.destroys st)
-                        (applyWrites (State.txLog st)
-                          (applyTransfers (State.pendingTransfers st)
-                            (applyCreates (State.creates st) st)))
+      let stApplied = applyStates (State.pendingStates st)
+                        (applyDestroys (State.destroys st)
+                          (applyWrites (State.txLog st)
+                            (applyTransfers (State.pendingTransfers st)
+                              (applyCreates (State.creates st) st))))
           st' = incrementEventCounter (record stApplied {
                   tx = nothing
                 ; txLog = []
@@ -1061,6 +1078,7 @@ transactional overlays to the global store.
                 ; destroys = []
                 ; observed = []
                 ; pendingTransfers = []
+                ; pendingStates = []
                 ; txController = nothing
               })
           entry = makeLogEntry (TransactionCommitted txid) st
@@ -1080,6 +1098,7 @@ operations performed within the transaction scope.
                 ; destroys = []
                 ; observed = []
                 ; pendingTransfers = []
+                ; pendingStates = []
                 ; txController = nothing
               })
           entry = makeLogEntry (TransactionAborted txid) st

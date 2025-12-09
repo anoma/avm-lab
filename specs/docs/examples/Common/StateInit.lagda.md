@@ -25,13 +25,13 @@ open import AVM.Context Val ObjectId MachineId ControllerId TxId ObjectBehaviour
 
 ## Store Initialization
 
-Empty store construction produces an initial object store containing no objects
-or metadata entries. Both the object store and metadata store are represented
-as functions mapping all object identifiers to `nothing`.
+Empty store construction produces an initial object store containing no objects,
+metadata entries, or states. The object store, metadata store, and state store
+are all represented as functions mapping all object identifiers to `nothing`.
 
 ```agda
 emptyStore : Store
-emptyStore = mkStore (λ _ → nothing) (λ _ → nothing)
+emptyStore = mkStore (λ _ → nothing) (λ _ → nothing) (λ _ → nothing)
 ```
 
 ## Pure Functions Registry
@@ -64,6 +64,7 @@ mkInitialState machineId self input = record
   ; destroys = []
   ; observed = []
   ; pendingTransfers = []
+  ; pendingStates = []
   ; tx = nothing
   ; txController = nothing
   ; self = self

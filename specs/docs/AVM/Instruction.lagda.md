@@ -26,7 +26,8 @@ capabilities.
 | `self` | [Return current object's ID](#self) |
 | `input` | [Return current input message](#input) |
 | `getCurrentMachine` | [Return current physical machine ID](#getcurrentmachine) |
-| `history` | [Return accumulated input sequence](#history) |
+| `getState` | [Return current object's internal state](#getstate) |
+| `setState` | [Update current object's internal state](#setstate) |
 | `sender` | [Return calling object's ID](#sender) |
 | **Reflection layer** | |
 | `reflect` | [Retrieve object metadata (unsafe)](#reflect-unsafe) |
@@ -199,7 +200,7 @@ match on the received message.
 The introspection instruction family constitutes the second layer of the AVM ISA
 hierarchy. This layer provides primitive introspection operations enabling
 programs to query their own execution context—the current object's identity,
-input, history, and caller information.
+input, internal state, and caller information.
 
 Introspection is distinguished from reflection: introspection examines the
 *self* (current execution context), while reflection examines *others* (external
@@ -207,16 +208,17 @@ objects' metadata and internals).
 
 #### Agda@IntrospectInstruction Datatype
 
-Introspection instructions provide capabilities for querying the current
-object's own execution context. All introspection operations are safe because
-they only access information the executing object legitimately owns.
+Introspection instructions provide capabilities for querying and updating the
+current object's own execution context. All introspection operations are safe
+because they only access information the executing object legitimately owns.
 
 ```agda
 data IntrospectInstruction : Safety → ISA where
   self : IntrospectInstruction Safe ObjectId
   input : IntrospectInstruction Safe Input
   getCurrentMachine : IntrospectInstruction Safe MachineId
-  history : IntrospectInstruction Safe InputSequence
+  getState : IntrospectInstruction Safe (List Val)
+  setState : List Val → IntrospectInstruction Safe ⊤
   sender : IntrospectInstruction Safe (Maybe ObjectId)
 ```
 
@@ -551,11 +553,37 @@ data Constraint : Set where
   -- Inequality: var₁ ≠ var₂
   Neq : VarId → VarId → Constraint
 
+  -- Ordering constraints between variables
+  -- Less than or equal: var₁ ≤ var₂
+  Leq : VarId → VarId → Constraint
+
+  -- Less than: var₁ < var₂
+  Lt : VarId → VarId → Constraint
+
+  -- Greater than or equal: var₁ ≥ var₂
+  Geq : VarId → VarId → Constraint
+
+  -- Greater than: var₁ > var₂
+  Gt : VarId → VarId → Constraint
+
   -- All-different: all variables must take distinct values
   AllDiff : List VarId → Constraint
 
-  -- Value constraint: var = value
+  -- Value constraints: compare a variable to a concrete value
+  -- var = value
   ValEq : VarId → Val → Constraint
+
+  -- var ≤ value
+  ValLeq : VarId → Val → Constraint
+
+  -- var < value
+  ValLt : VarId → Val → Constraint
+
+  -- var ≥ value
+  ValGeq : VarId → Val → Constraint
+
+  -- var > value
+  ValGt : VarId → Val → Constraint
 ```
 
 #### Agda@FDInstruction datatype
@@ -590,19 +618,29 @@ advanced AVM capabilities.
 #### Nondeterminism Instructions
 
 Nondeterminism instructions enable preference-directed selection and constraint
-validation at transaction commit time, suited for multi-party intent matching
-where constraints accumulate during execution and are evaluated atomically when
-the transaction commits.
+validation at transaction commit time. These instructions are suited for
+multi-party intent matching where constraints accumulate during execution and
+are evaluated atomically when the transaction commits.
+
+Nondeterministic constraints (Agda@NondetConstraint) differ from finite domain
+constraints (Agda@Constraint) in their evaluation semantics: nondeterministic
+constraints represent assertions validated atomically at commit time, whereas
+finite domain constraints are symbolic relations between variables that trigger
+incremental propagation.
 
 ```agda
+data NondetConstraint : Set where
+  -- Assert that a boolean condition must hold at transaction commit
+  Assert : Bool → NondetConstraint
+
 data NondetInstruction : Safety → ISA where
   -- Choose a value nondeterministically from available options
   -- Runtime may use preferences, weights, or solver guidance
   choose : List Val → NondetInstruction Safe Val
 
   -- Assert constraint that must hold at transaction commit
-  -- If false when commitTx executes, transaction aborts
-  require : Bool → NondetInstruction Safe ⊤
+  -- All accumulated constraints are validated atomically when commitTx executes
+  require : NondetConstraint → NondetInstruction Safe ⊤
 ```
 
 ### Choosing Between FD and NonDet Layers
@@ -635,8 +673,7 @@ execution models.
   4. Solver considers all constraints simultaneously
 
 2. Suitable for:
-  1. Intent matching and multi-party coordination (TODO: add examples of token
-     swaps)
+  1. Intent matching and multi-party coordination
   2. Preference-directed selection with solver guidance
 
 #### Linear Constraint Instructions
@@ -714,7 +751,8 @@ pattern obj-receive = Obj receive
 pattern get-self = Introspect self
 pattern get-input = Introspect input
 pattern get-current-machine = Introspect getCurrentMachine
-pattern get-history = Introspect history
+pattern get-state = Introspect getState
+pattern set-state newState = Introspect (setState newState)
 pattern get-sender = Introspect sender
 
 -- Reflection instruction patterns (examining others - unsafe)
@@ -813,7 +851,7 @@ The second Agda@Maybe ControllerId parameter optionally specifies the controller
 that should own the object:
 
 - Agda@just controllerId: The object is created with the specified controller as
-  both Agda@creatingController and Agda@currentController
+  both `creatingController` and `currentController` fields in Agda@ObjectMeta
 - Agda@nothing: If within a transaction, the object is created with the
   transaction's controller. If outside a transaction, the object is created
   without a controller (both controller fields are Agda@nothing)
@@ -907,18 +945,29 @@ This instruction enables programs to reason about their execution location,
 which is independent of controller identity. Machine information is useful for
 data locality optimizations and understanding cross-machine communication costs.
 
-#### Agda@history
+#### Agda@getState
 
 ```text
-history : IntrospectInstruction Safe InputSequence
+getState : IntrospectInstruction Safe (List Val)
 ```
 
-Returns the accumulated input history of the currently executing object,
-including both committed inputs from object metadata and any pending inputs
-within the current transaction. This allows object behaviors implemented as AVM
-programs to access their complete input sequence for stateful computation. The
-history enables objects to maintain state purely functionally by computing
-outputs based on the full sequence of messages received.
+Returns the current internal state of the executing object. The state is a list
+of values that the object maintains across invocations. Initially, all objects
+have an empty state `[]`. Objects update their state using the Agda@setState
+instruction. This enables objects to maintain explicit state rather than
+deriving state from input history.
+
+#### Agda@setState
+
+```text
+setState : List Val → IntrospectInstruction Safe ⊤
+```
+
+Updates the internal state of the currently executing object. The provided list
+of values replaces the current state entirely. State changes are persisted when
+the enclosing transaction commits (if within a transaction) or immediately (if
+outside a transaction). This instruction allows objects to maintain and evolve
+their internal state explicitly.
 
 #### Agda@sender
 
@@ -975,9 +1024,8 @@ Queries the store for objects whose metadata satisfies the given predicate.
 Returns pairs of object identifiers and metadata for all matching objects. This
 instruction traverses the entire store, applying the predicate to each object's
 metadata. Typical queries include finding all objects created by a specific
-controller, objects modified after a particular version, or objects whose
-history exceeds a certain length. Marked unsafe because enumeration scales with
-total object count.
+controller, objects on a particular machine, or objects with a specific current
+controller. Marked unsafe because enumeration scales with total object count.
 
 #### Agda@scryDeep (Unsafe)
 
@@ -1121,7 +1169,7 @@ implementations while maintaining deterministic computation semantics.
 **Meta-level state changes:**
 
 Pure function instructions modify the execution environment
-(Agda@State.pureFunctions), not the object store. These are **capability
+(the `pureFunctions` field of Agda@State), not the object store. These are **capability
 changes** altering what programs can compute.
 
 Key properties:
@@ -1303,11 +1351,22 @@ post : Constraint → FDInstruction Safe Bool
 ```
 
 Posts a relational constraint to the constraint store. Constraints relate
-variables through equality, Agda@Eq, inequality, Agda@Neq, and all-different,
-Agda@AllDiff, or value equations, Agda@ValEq. Returns Agda@true if the
-constraint is consistent with the current constraint store, Agda@false if
-posting the constraint would lead to immediate failure. Constraint posting
-triggers propagation to narrow the variable domains.
+variables through:
+
+- **Equality/Inequality**: Agda@Eq (=), Agda@Neq (≠)
+- **Ordering**: Agda@Leq (≤), Agda@Lt (<), Agda@Geq (≥), Agda@Gt (>)
+- **Global constraints**: Agda@AllDiff (all-different)
+- **Value constraints**: Agda@ValEq (=), Agda@ValLeq (≤), Agda@ValLt (<),
+  Agda@ValGeq (≥), Agda@ValGt (>)
+
+Returns Agda@true if the constraint is consistent with the current constraint
+store, Agda@false if posting the constraint would lead to immediate failure.
+Constraint posting triggers propagation to narrow the variable domains.
+
+Examples:
+- `post (Leq x y)` constrains variable x to be less than or equal to variable y
+- `post (ValGt x v)` constrains variable x to be greater than value v
+- `post (AllDiff [x, y, z])` ensures all three variables take distinct values
 
 #### Agda@label
 

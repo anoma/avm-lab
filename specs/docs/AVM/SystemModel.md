@@ -166,7 +166,7 @@ Uniqueness: Each object has at most one `currentController` at any time, recorde
 #### Object Lifecycle Authority
 
 
-1. Creation: Agda@createObj accepts an optional controller parameter. If specified, that controller becomes the object's immutable Agda@creatingController and initial `currentController`. If omitted within a transaction, the transaction's controller is used. Objects may be created without a controller (both fields set to `nothing`) when created outside transactions with no controller specified.
+1. Creation: Agda@createObj accepts an optional controller parameter. If specified, that controller becomes the object's immutable `creatingController` and initial `currentController` fields in Agda@ObjectMeta. If omitted within a transaction, the transaction's controller is used. Objects may be created without a controller (both fields set to `nothing`) when created outside transactions with no controller specified.
 
 2. Transfer: Agda@transferObject updates `currentController` to transfer authority.
 

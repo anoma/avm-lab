@@ -89,7 +89,7 @@ Context](AVM/Context.lagda.md) module.
 ### R4: Execution Context Migration (Suggested)
 
 Support moving execution across machines while preserving controller authority
-and history identifiers.
+and object state.
 
 **Platform responsibility**: Implement serialization and migration protocol
 (optional for single-machine deployments).
@@ -311,7 +311,7 @@ intent matching and preference composition. This feeds external solvers or CSP
 tooling for intent matching and synthesis. An SMT solver or CSP solver is
 required.
 
-**Use cases**: Intent matching, token swaps, multi-party coordination where
+**Use cases**: Intent matching, multi-party coordination where
 constraints accumulate and are evaluated atomically.
 
 #### Finite Domain Constraints (Call-Time Choice)

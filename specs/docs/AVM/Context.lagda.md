@@ -97,21 +97,21 @@ InputSequence = List Input
 ## Object Metadata Structure
 
 Extrinsic metadata managed by the AVM runtime encompasses the object's unique
-identifier, accumulated input history, physical machine location, and controller
-authority assignments. Objects are hosted on machines (representing physical
-computational nodes) and may possess ownership relationships with controllers
-(representing logical authorities responsible for transaction ordering). Each
-object's metadata records its current machine location, and optionally the
-controller that created it (immutable provenance) and the controller that
-currently owns it (mutable ownership). Objects may be created without a
-controller, deferring controller assignment until later.
+identifier, physical machine location, and controller authority assignments.
+Objects are hosted on machines (representing physical computational nodes) and
+may possess ownership relationships with controllers (representing logical
+authorities responsible for transaction ordering). Each object's metadata
+records its current machine location, and optionally the controller that created
+it (immutable provenance) and the controller that currently owns it (mutable
+ownership). Objects may be created without a controller, deferring controller
+assignment until later. Internal object state is stored separately in the
+StateStore, not in metadata.
 
 ```agda
 record ObjectMeta : Set where
   constructor mkMeta
   field
     objectId : ObjectId
-    history : List Input                 -- Accumulated inputs
 
     -- Physical location
     machine : MachineId                  -- Where object data resides
@@ -145,6 +145,17 @@ MetaStore : Set
 MetaStore = ObjectId → Maybe ObjectMeta
 ```
 
+### Agda@StateStore
+
+Object state is stored separately from behavior and metadata. Each object
+maintains a list of values representing its internal state. The state is
+updated explicitly via the `setState` instruction and read via `getState`.
+
+```agda
+StateStore : Set
+StateStore = ObjectId → Maybe (List Val)
+```
+
 ### Runtime Object Type Synonyms
 
 Runtime objects in the AVM are represented as the pairing of an executable
@@ -172,7 +183,8 @@ record Store : Set where
   constructor mkStore
   field
     objects : ObjectStore    -- Immutable object behaviours
-    metadata : MetaStore     -- Mutable runtime state
+    metadata : MetaStore     -- Mutable runtime metadata
+    states : StateStore      -- Mutable object states
 ```
 
 The Agda@Store abstraction establishes a clear architectural boundary separating
@@ -265,6 +277,7 @@ record State : Set where
     destroys : List ObjectId                          -- Pending destroys
     observed : List ObjectId                          -- Read set (for tracking accessed objects)
     pendingTransfers : List (ObjectId × ControllerId) -- Pending object moves
+    pendingStates : List (ObjectId × List Val)       -- Pending state updates
     tx : Maybe TxId                                   -- Active transaction id (if any)
     txController : Maybe ControllerId                 -- Transaction controller (locked or deferred)
 
@@ -292,7 +305,8 @@ The Agda@State record organizes fields into five logical groups:
 - Transactional overlay: `txLog` accumulates uncommitted writes (object-input
   pairs), `creates` and `destroys` track pending object lifecycle changes,
   `observed` records the read set of accessed objects, `pendingTransfers` queues
-  cross-controller object moves, `tx` holds the active transaction identifier
+  cross-controller object moves, `pendingStates` queues pending state updates
+  for objects (applied at commit), `tx` holds the active transaction identifier
   (or `nothing` if no transaction is active), and `txController` tracks the
   controller for the current transaction (locked immediately via `beginTx` or
   resolved from the first accessed object). Controllers are transaction-scoped,

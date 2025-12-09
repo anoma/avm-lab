@@ -763,7 +763,7 @@ The operational semantics defines transitions as pure mathematical relations. Th
 -- Pass Object as a parameter to avoid circular dependency
 -- Hide Input/Output to avoid name collisions since we already defined them
 open import AVM.Instruction Val ObjectId MachineId ControllerId TxId Object
-  hiding (Input; Output; Message; InputSequence; history)
+  hiding (Input; Output; Message; InputSequence; getState; setState)
 ```
 
 ### Integration with Interaction Trees
