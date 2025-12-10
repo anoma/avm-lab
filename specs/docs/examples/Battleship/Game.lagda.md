@@ -20,12 +20,26 @@ open import AVM.Instruction PB.Val PB.ObjectId PB.MachineId PB.ControllerId PB.T
   hiding (Input; Output; InputSequence)
 ```
 
+## Player Type
+
+Represents the two players in the game.
+
+```agda
+data Player : Set where
+  Player1 : Player
+  Player2 : Player
+
+-- Game state holding both player boards
+GameState : Set
+GameState = PB.ObjectId × PB.ObjectId
+```
+
 ## Game Setup
 
 Creates a game with two player boards, each with pre-placed ships.
 
 ```agda
-setupGame : AVMProgram (PB.ObjectId × PB.ObjectId)
+setupGame : AVMProgram GameState
 setupGame =
   trigger (tx-begin nothing) >>= λ setupTx →
   trigger (obj-create "PlayerBoard" nothing) >>= λ board1 →
@@ -38,6 +52,11 @@ setupGame =
   trigger (obj-call board2 (PB.VShip 4 4 2)) >>= λ _ →
   trigger (tx-commit setupTx) >>= λ _ →
   ret (board1 , board2)
+
+-- Get the opponent's board given the current player
+opponentBoard : Player → GameState → PB.ObjectId
+opponentBoard Player1 (board1 , board2) = board2
+opponentBoard Player2 (board1 , board2) = board1
 ```
 
 ## Playing Turns
@@ -45,21 +64,21 @@ setupGame =
 Players attack each other's boards directly.
 
 ```agda
--- Player 1 attacks Player 2's board at coordinate (x, y)
-player1Attack : PB.ObjectId → ℕ → ℕ → AVMProgram (Maybe PB.Val)
-player1Attack board2 x y =
+-- Attack a board at coordinate (x, y)
+attack : PB.ObjectId → ℕ → ℕ → AVMProgram (Maybe PB.Val)
+attack board x y =
   trigger (tx-begin nothing) >>= λ turnTx →
-  trigger (obj-call board2 (PB.VCoord x y)) >>= λ result →
+  trigger (obj-call board (PB.VCoord x y)) >>= λ result →
   trigger (tx-commit turnTx) >>= λ _ →
   ret result
 
--- Player 2 attacks Player 1's board at coordinate (x, y)
-player2Attack : PB.ObjectId → ℕ → ℕ → AVMProgram (Maybe PB.Val)
-player2Attack board1 x y =
-  trigger (tx-begin nothing) >>= λ turnTx →
-  trigger (obj-call board1 (PB.VCoord x y)) >>= λ result →
-  trigger (tx-commit turnTx) >>= λ _ →
-  ret result
+-- Player-based attack using the Player type
+playerAttack : Player → GameState → ℕ → ℕ → AVMProgram (Maybe PB.Val)
+playerAttack player gameState x y = attack (opponentBoard player gameState) x y
+
+-- Convenience aliases for backward compatibility
+player1Attack = attack
+player2Attack = attack
 ```
 
 ## Example Full Game
@@ -67,7 +86,7 @@ player2Attack board1 x y =
 A complete game with setup and multiple attack turns.
 
 ```agda
-playFullGame : AVMProgram (PB.ObjectId × PB.ObjectId)
+playFullGame : AVMProgram GameState
 playFullGame =
   setupGame >>= λ { (board1 , board2) →
 
@@ -91,7 +110,7 @@ playFullGame =
 Demonstrates transaction rollback in the game.
 
 ```agda
-gameWithRollback : AVMProgram (PB.ObjectId × PB.ObjectId)
+gameWithRollback : AVMProgram GameState
 gameWithRollback =
   setupGame >>= λ { (board1 , board2) →
 
@@ -104,4 +123,28 @@ gameWithRollback =
   player1Attack board2 1 1 >>= λ _ →
 
   ret (board1 , board2) }
+```
+
+## Example Game Using Player Type
+
+A complete game using the Player type for cleaner code.
+
+```agda
+playGameWithPlayerType : AVMProgram GameState
+playGameWithPlayerType =
+  setupGame >>= λ gameState →
+
+  -- Turn 1: Player 1 attacks at (1, 1) - should HIT
+  playerAttack Player1 gameState 1 1 >>= λ _ →
+
+  -- Turn 2: Player 2 attacks at (0, 0) - should HIT
+  playerAttack Player2 gameState 0 0 >>= λ _ →
+
+  -- Turn 3: Player 1 attacks at (5, 5) - should MISS
+  playerAttack Player1 gameState 5 5 >>= λ _ →
+
+  -- Turn 4: Player 2 attacks at (2, 2) - should HIT
+  playerAttack Player2 gameState 2 2 >>= λ _ →
+
+  ret gameState
 ```

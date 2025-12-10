@@ -468,15 +468,6 @@ data NondetError : Set where
   ErrNotImplemented : String → NondetError
 ```
 
-### Agda@ConstrError
-
-Linear constraint instruction errors.
-
-```agda
-data ConstrError : Set where
-  ErrNotImplemented : String → ConstrError
-```
-
 ## Composed Error Types
 
 Error types compose in layers matching the instruction set hierarchy. Each layer
@@ -527,7 +518,6 @@ data AVMError : Set where
   controller-error : ControllerError → AVMError
   fd-error : FDError → AVMError
   nondet-error : NondetError → AVMError
-  constr-error : ConstrError → AVMError
 ```
 
 ## Error Pattern Synonyms
@@ -680,9 +670,6 @@ pattern err-fd-not-implemented msg =
 
 pattern err-nondet-not-implemented msg =
   nondet-error (ErrNotImplemented msg)
-
-pattern err-constr-not-implemented msg =
-  constr-error (ErrNotImplemented msg)
 ```
 
 ## Observability and Tracing

@@ -7,9 +7,8 @@ tags:
   - AVM interpreter
 ---
 
-This module provides the execution harness for the Ping-Pong protocol example,
-utilizing the [AVM.Interpreter](../../AVM/Interpreter.lagda.md) operational
-semantics implementation to execute the Ping-Pong protocol example.
+This module provides the execution harness for the Ping-Pong example using
+the [AVM.Interpreter](../../AVM/Interpreter.lagda.md).
 
 ```agda
 {-# OPTIONS --type-in-type --guardedness #-}
@@ -23,10 +22,6 @@ open import examples.Common.Equality
 ```
 
 ## Display Functions
-
-Display helper functions convert Ping-Pong protocol-specific value types to
-human-readable string representations, enabling trace output and result
-formatting for the interactive protocol demonstration.
 
 ```agda
 showOid : PP.ObjectId → String
@@ -60,10 +55,6 @@ module InterpreterImport where
 
 <details markdown="1">
 <summary>Interpreter Parameterization</summary>
-
-The interpreter instantiation requires concrete implementations of
-platform-specific parameters as specified by the AVM.Interpreter module
-signature.
 
 ```agda
 -- Equality for ObjectId (pairs of strings)
@@ -171,29 +162,14 @@ module RunnerInterpreter where
 open RunnerInterpreter public
 ```
 
-## Initial Execution State Configuration
+## Initial State
 
 ```agda
 initialState : State
 initialState = mkInitialState "node1" ("root", "orchestrator") (VString "")
 ```
 
-## Observability and Rendering Infrastructure
-
-Standard display functions for event types, log entries, traces, and execution
-results are provided by the `examples.Common.Display` module, which was imported
-earlier with protocol-specific value display functions.
-
-```agda
-```
-
-## Execution Harness Implementation
-
-The example program is specified in Main.lagda.md. However, due to the
-abstraction of the Object type in Main and the requirement for concrete
-ObjectImpl instances in this module, direct utilization of PP.pingPongExample is
-precluded. Consequently, we construct the test execution manually by directly
-invoking the behavioral functions.
+## Test Programs
 
 ```agda
 testSimple : AVMProgram PP.Val

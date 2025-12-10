@@ -288,8 +288,8 @@ executeSolver : ConstraintIR → IO (Maybe Solution)
 ### Execution Traces (Required)
 
 Use the Agda@EventType and Agda@Trace abstractions from the Agda@Context module.
-Each execution **must** maintain an MSC so linear and non-linear constraints can
-be expressed during multi-party intent matching.
+Each execution **must** maintain an MSC so constraints can be expressed during
+multi-party intent matching.
 
 **Platform responsibility**: Preserve trace completeness and ordering
 guarantees.

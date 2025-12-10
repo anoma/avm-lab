@@ -1368,7 +1368,6 @@ management.
     ...  | Controller instr = executeController instr st
     ...  | FD instr = failure (err-fd-not-implemented "FD instructions not yet implemented")
     ...  | Nondet instr = failure (err-nondet-not-implemented "Nondeterminism instructions not yet implemented")
-    ...  | LinearConstr instr = failure (err-constr-not-implemented "Linear constraint instructions not yet implemented")
 ```
 
 ### Program-Level Interpretation Semantics

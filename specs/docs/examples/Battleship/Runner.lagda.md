@@ -1,6 +1,6 @@
 # Battleship Runner
 
-This module sets up the interpreter and runs the Battleship game.
+This module provides the execution harness for the Battleship game.
 
 ```agda
 {-# OPTIONS --type-in-type --guardedness #-}
@@ -15,10 +15,7 @@ open import examples.Common.Equality
 open import examples.Common.StateInit PB.Val PB.ObjectId PB.MachineId PB.ControllerId PB.TxId PB.ObjectBehaviour
 ```
 
-## Display Functions
-
-Display helper functions convert Battleship-specific value types to human-readable
-string representations, enabling trace output and result formatting.
+## Display and Conversion Functions
 
 ```agda
 showOid : PB.ObjectId → String
@@ -30,11 +27,7 @@ showValAgda (PB.VCoord x y) = "(VCoord " ++ˢ showNat x ++ˢ " " ++ˢ showNat y 
 showValAgda (PB.VShip x y len) = "(VShip " ++ˢ showNat x ++ˢ " " ++ˢ showNat y ++ˢ " len=" ++ˢ showNat len ++ˢ ")"
 
 open import examples.Common.Display PB.Val PB.ObjectId PB.TxId PB.ControllerId PB.MachineId PB.ObjectBehaviour showValAgda showOid showNat (λ s → s) (λ s → s)
-```
 
-## Type Conversions and Equality
-
-```agda
 freshObjectId : ℕ → PB.ObjectId
 freshObjectId n = n
 
@@ -46,10 +39,9 @@ eqObjectId = _==ℕ_
 
 eqTxId : PB.TxId → PB.TxId → Bool
 eqTxId = _==ℕ_
-
 ```
 
-## Interpreter Setup
+## AVM Interpreter Configuration
 
 ```agda
 open import AVM.Interpreter PB.Val PB.ObjectId freshObjectId PB.MachineId PB.ControllerId PB.TxId freshTxId PB.ObjectBehaviour
@@ -57,21 +49,17 @@ open import AVM.Interpreter PB.Val PB.ObjectId freshObjectId PB.MachineId PB.Con
 eqControllerId : PB.ControllerId → PB.ControllerId → Bool
 eqControllerId = eqString
 
+mkControllerId : String → PB.ControllerId
+mkControllerId s = s
+
 interpretBehaviorName : String → PB.ObjectBehaviour
-interpretBehaviorName s = tt
+interpretBehaviorName _ = tt
 
 allObjectIds : State → List PB.ObjectId
 allObjectIds st = State.observed st ++ map (λ { (oid , _ , _) → oid }) (State.creates st)
 
 getBehavior : PB.ObjectBehaviour → AVMProgram (List PB.Val)
 getBehavior _ = PB.boardBehavior
-```
-
-## Main Interpreter
-
-```agda
-mkControllerId : String → PB.ControllerId
-mkControllerId s = s
 
 module RunnerInterpreter where
   {-# TERMINATING #-}
@@ -86,51 +74,34 @@ module RunnerInterpreter where
 open RunnerInterpreter public
 ```
 
-## Initial State
+## Initial State and Display Helpers
 
 ```agda
 initialState : State
 initialState = mkInitialState "node1" 0 (PB.VCoord 0 0)
-```
 
-## Test Result Display
-
-Test result display functions format example-specific output types for
-presentation, including optional values and object identifier pairs.
-
-```agda
 showMaybeVal : Maybe PB.Val → String
 showMaybeVal nothing = "nothing"
 showMaybeVal (just v) = "just " ++ˢ showValAgda v
 
-showPair : PB.ObjectId × PB.ObjectId → String
-showPair (board1 , board2) = "(board1: " ++ˢ showOid board1 ++ˢ ", board2: " ++ˢ showOid board2 ++ˢ ")"
+showGameState : Game.GameState → String
+showGameState (board1 , board2) = "(board1: " ++ˢ showOid board1 ++ˢ ", board2: " ++ˢ showOid board2 ++ˢ ")"
 ```
 
-## Test Cases
+## Test Cases and Main Execution
 
 ```agda
--- Test 1: Single board - HIT
 testHit : AVMProgram (Maybe PB.Val)
 testHit =
   IT._>>=_ (trigger (obj-create "PlayerBoard" nothing)) λ board →
   IT._>>=_ (trigger (obj-call board (PB.VShip 0 0 3))) λ _ →
   trigger (obj-call board (PB.VCoord 0 1))
 
--- Test 2: Single board - MISS
 testMiss : AVMProgram (Maybe PB.Val)
 testMiss =
   IT._>>=_ (trigger (obj-create "PlayerBoard" nothing)) λ board →
   IT._>>=_ (trigger (obj-call board (PB.VShip 0 0 3))) λ _ →
   trigger (obj-call board (PB.VCoord 5 5))
-
--- Test 3: Full game using Game module
-testFullGame : AVMProgram (PB.ObjectId × PB.ObjectId)
-testFullGame = Game.playFullGame
-
--- Test 4: Game with rollback
-testRollback : AVMProgram (PB.ObjectId × PB.ObjectId)
-testRollback = Game.gameWithRollback
 
 runExample : String → ∀ {A} → (A → String) → AVMProgram A → PrimIO ⊤
 runExample title showA prog = do
@@ -142,11 +113,12 @@ runExample title showA prog = do
 
 main : PrimIO ⊤
 main = do
-  putStrLn "=== Battleship Interactive Demo ==="
+  putStrLn "=== Battleship Game Demo ==="
   putStrLn ""
-  runExample "Test 1: Single Board - Attack HIT" showMaybeVal testHit
-  runExample "Test 2: Single Board - Attack MISS" showMaybeVal testMiss
-  runExample "Test 3: Full Game with Two Players" showPair testFullGame
-  runExample "Test 4: Game with Transaction Rollback" showPair testRollback
+  runExample "Single Board - Attack HIT" showMaybeVal testHit
+  runExample "Single Board - Attack MISS" showMaybeVal testMiss
+  runExample "Full Game with Two Players" showGameState Game.playFullGame
+  runExample "Game with Player Types" showGameState Game.playGameWithPlayerType
+  runExample "Game with Transaction Rollback" showGameState Game.gameWithRollback
   putStrLn "Done!"
 ```

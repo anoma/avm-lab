@@ -24,71 +24,32 @@ open import Background.InteractionTrees
 
 </div>
 
-This module presents a formal implementation of the Ping-Pong communication
-protocol using (the) AVM object model, wherein objects are encapsulated as
-executable AVM programs within object instances.
+This example demonstrates two objects (Ping and Pong) that exchange messages
+back and forth until a maximum count is reached.
 
-<figure markdown>
-
-```mermaid
-sequenceDiagram
-    participant P as Ping Object
-    participant Po as Pong Object
-
-    P->>Po: ping(0)
-    Po->>P: pong(1)
-    P->>Po: ping(2)
-    Po->>P: pong(3)
-    P->>Po: ping(4)
-    Po->>P: pong(5)
-    Note over P,Po: Max count reached
-```
-
-<figcaption>Communication protocol sequence between Ping and Pong objects,
-demonstrating asynchronous message passing until the maximum iteration count is reached.</figcaption>
-
-</figure>
-
-## Type System Definitions
-
-First, we define the basic identifier types needed for the AVM:
+## Type Definitions
 
 ```agda
 NodeId : Set
 NodeId = String
-```
 
-```agda
 ObjectId : Set
 ObjectId = NodeId × String
-```
 
-```agda
 data MessageType : Set where
   Ping : MessageType
   Pong : MessageType
-```
 
-Protocol messages encapsulate the message type, iteration counter, partner
-object identifier, and maximum iteration bound, providing the complete state for
-protocol execution.
-
-```agda
 record PingPongMsg : Set where
   constructor mkMsg
   field
-    msgType : MessageType  -- either Ping or Pong
+    msgType : MessageType
     counter : ℕ
-    partnerId : ObjectId  -- who the message is for
+    partnerId : ObjectId
     maxCount : ℕ
 
 open PingPongMsg
-```
 
-The value type system is specialized to support the Ping-Pong protocol
-requirements, with a dedicated constructor for Agda@PingPongMsg values:
-
-```agda
 data Val : Set where
   VInt : ℕ → Val
   VString : String → Val
@@ -139,19 +100,15 @@ open import AVM.Instruction Val ObjectId MachineId ControllerId TxId ObjectBehav
 </details>
 
 
-## Executable Program Specifications
+## Main Program
 
 ```agda
 createPing : AVMProgram ObjectId
 createPing = trigger (obj-create "ping" nothing)
-```
 
-```agda
 createPong : AVMProgram ObjectId
 createPong = trigger (obj-create "pong" nothing)
-```
 
-```agda
 startPingPong : ℕ → AVMProgram Val
 startPingPong maxCount =
   createPing >>= λ pingId →
@@ -164,13 +121,9 @@ startPingPong maxCount =
         }
   in trigger (obj-call pingId initialMsg) >>= λ mResult →
      caseMaybe mResult
-      -- valid result: complete
        (λ result → ret (VList (VString "complete" ∷ result ∷ [])))
-       -- invalid result: call-failed
        (ret (VString "call-failed"))
-```
 
-```agda
 pingPongExample : AVMProgram Val
 pingPongExample = startPingPong 5
 ```

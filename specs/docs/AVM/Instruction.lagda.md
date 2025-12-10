@@ -63,9 +63,6 @@ capabilities.
 | **Nondeterminism layer** | |
 | `choose` | [Select value from preference distribution](#nondeterminism-instructions) |
 | `require` | [Assert constraint for transaction](#nondeterminism-instructions) |
-| **Linear constraint layer** | |
-| `newLinearConstraint` | [Register linear constraint](#linear-constraint-instructions) |
-| `satisfyLinear` | [Mark constraint as satisfied](#linear-constraint-instructions) |
 
 <figcaption>AVM Instruction Set Architecture</figcaption>
 
@@ -272,6 +269,7 @@ objects, reification *captures* runtime state structures as values that can be
 stored, transmitted, or later analyzed.
 
 Reification enables:
+
 - **Debugging**: Capturing execution snapshots for post-mortem analysis
 - **Migration**: Serializing execution state for process migration
 - **Checkpointing**: Creating restorable execution snapshots
@@ -676,39 +674,6 @@ execution models.
   1. Intent matching and multi-party coordination
   2. Preference-directed selection with solver guidance
 
-#### Linear Constraint Instructions
-
-Different from Agda@Constraint, Agda@LinearObjectConstraint is a set of
-constraints that are satisfied by the current step on terms of resource
-linearity. Meaning that the constraint is satisfied if and only if the current
-step uses an object exactly once.
-
-- Linear object constraint identifiers
-```agda
-record LinearObjectConstraintId : Set where
-  constructor mkLinearCid
-  field
-    constraintId : ℕ
-```
-
-- A linear object constraint requires that a message send be used exactly once
-```agda
-data LinearObjectConstraint : Set where
-  UseOnce : ObjectId → Input → LinearObjectConstraint
-```
-
-- Register a new linear object constraint
-```agda
-data LinearObjectConstraintInstruction : Safety → ISA where
-  -- Register a new linear object constraint; returns its identifier
-  newLinearConstraint : LinearObjectConstraint → LinearObjectConstraintInstruction Safe LinearObjectConstraintId
-  -- Mark a linear object constraint as satisfied by the current step
-  satisfyLinear : LinearObjectConstraintId → LinearObjectConstraintInstruction Safe Bool
-```
-
-We don't define another instruction set for linear constraints, and fd, as with
-these instructions we define "the" instruction set as given below.
-
 ### The Instruction datatype
 
 The Agda@Instruction datatype combines all instructions so far defined,
@@ -728,7 +693,6 @@ data Instruction : Safety → ISA where
   Controller : ∀ {s A} → ControllerInstruction s A → Instruction s A
   FD : ∀ {s A} → FDInstruction s A → Instruction s A
   Nondet : ∀ {s A} → NondetInstruction s A → Instruction s A
-  LinearConstr : ∀ {s A} → LinearObjectConstraintInstruction s A → Instruction s A
 ```
 
 #### Pattern Synonyms for convenience
