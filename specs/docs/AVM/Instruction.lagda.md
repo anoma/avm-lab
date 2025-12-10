@@ -482,9 +482,7 @@ data ControllerInstruction : Safety → ISA where
 
   -- Freeze: synchronize all replicas through the controller for strong consistency
   -- When multiple machines have fetched the same object, freeze reconciles their state
-  -- If the object doesn't have a controller, the freeze operation fails with an error.
-  -- The return value is just to indicate whether the freeze operation succeeded or failed.
-  -- If the object doesn't have a controller, the freeze operation returns nothing.
+  -- Returns: nothing (no controller), just true (success), just false (object missing/unreachable)
   freeze : ObjectId → ControllerInstruction Safe (Maybe Bool)
 ```
 
@@ -863,12 +861,22 @@ receive : ObjInstruction Safe (Maybe Input)
 ```
 
 Receives the next available message for the current object. This instruction
-enables asynchronous message reception, allowing objects to wait for incoming
-messages from other objects or the runtime system. Returns Agda@just the
-received message if one is available, or Agda@nothing if no message is available
-or if the object's message queue is empty. The instruction may block until a
-message arrives, depending on the runtime implementation's message delivery
-semantics. TBD!
+enables asynchronous message reception, allowing objects to retrieve incoming
+messages from other objects or the runtime system.
+
+The blocking behavior is **platform-specific**: runtime implementations may choose
+to make this instruction blocking (waiting until a message arrives) or non-blocking
+(returning immediately). The return type Agda@Maybe Input accommodates both:
+- Blocking implementations: always return Agda@just a message (blocking until one arrives)
+- Non-blocking implementations: return Agda@just a message if available, or Agda@nothing
+  if the message queue is empty
+
+Consult your runtime's documentation for its specific message reception semantics.
+
+This differs from Agda@input (see introspection below), which only exposes the
+message that triggered the *current* activation. Agda@receive dequeues the
+*next* message (and may block waiting), while Agda@input is a pure read of the
+current call context that neither waits nor consumes the queue.
 
 ### Introspection (Self-Examination)
 
@@ -884,10 +892,7 @@ self : IntrospectInstruction Safe ObjectId
 
 Returns the Agda@ObjectId of the currently executing object. This instruction is
 essential for recursion and self-reference, allowing an object to pass its own
-identifier to other objects or invoke itself. See also the use of Agda@self in
-defining purely functional resources in the AVM.
-
-- https://forum.anoma.net/t/resources-as-purely-functional-objects/1455#p-5812-resource-class-implementation-6
+identifier to other objects or invoke itself.
 
 #### Agda@input
 
@@ -944,21 +949,6 @@ Agda@call instruction. Returns Agda@nothing for top-level execution contexts or
 when no caller exists. This instruction enables objects to verify the origin of
 received messages and implement access control policies based on caller
 identity.
-
-Use cases:
-
-- Authorization: verify the caller has permission to invoke an operation
-- Access control: restrict functionality to specific objects
-- Provenance tracking: maintain audit trails of message origins
-- Capability-based security: objects acting as capabilities can verify bearer
-  identity
-
-Design notes:
-
-- Safe instruction: purely introspective, no side effects
-- Returns Agda@Maybe to handle both object calls and top-level execution
-- Complements Agda@self (current object) with caller information
-- Maintains separation: messages carry payloads, context carries metadata
 
 ### Reflection (Examining Others)
 
@@ -1130,23 +1120,9 @@ was updated), Agda@false if the function does not exist in the registry or the
 update fails. This instruction enables dynamic modification of pure function
 implementations while maintaining deterministic computation semantics.
 
-**Meta-level state changes:**
-
-Pure function instructions modify the execution environment
-(the `pureFunctions` field of Agda@State), not the object store. These are **capability
-changes** altering what programs can compute.
-
-Key properties:
-
-- **Non-transactional**: Changes take effect immediately, not deferred to commit
-- **Global scope**: Affects all subsequent execution system-wide
-- **Registry semantics**: Functions identified by string names
-
-| Operation         | Effect                                               | Traced |
-|:------------------|:-----------------------------------------------------|:-------|
-| Agda@registerPure | Add new function (unsafe: extends capabilities)      | No     |
-| Agda@updatePure   | Replace existing function (safe: requires existence) | Yes    |
-| Agda@callPure     | Invoke function (safe: read-only)                    | No     |
+Pure function instructions modify the execution environment (the
+`pureFunctions` field of Agda@State), not the object store. These changes take
+effect immediately and affect all subsequent execution system-wide.
 
 ### Machine Instructions
 
@@ -1207,14 +1183,9 @@ if the object does not exist.
 
 Multiple AVM programs on different machines can fetch the same object, creating
 independent replicas. These replicas may diverge (eventual consistency) until
-reconciled via Agda@freeze. This enables:
-
-- **Performance**: Local calls avoid network round-trips
-- **Availability**: Programs can operate even during network partitions
-- **Scalability**: Multiple machines can work with the same object concurrently
-
-The fetch operation does not change the object's controller ownership or its
-authoritative location—it creates a local working copy for efficient access.
+reconciled via Agda@freeze. The fetch operation does not change the object's
+controller ownership or its authoritative location—it creates a local working
+copy for efficient access.
 
 ### Controller Instructions
 
@@ -1262,16 +1233,19 @@ object.
 #### Agda@freeze
 
 ```text
-freeze : ObjectId → ControllerInstruction Safe Bool
+freeze : ObjectId → ControllerInstruction Safe (Maybe Bool)
 ```
 
 Synchronizes all replicas of an object through the controller for strong
 consistency. When multiple machines have fetched the same object (creating
 local replicas), their states may diverge. The freeze operation reconciles
 these divergent replicas by pushing all pending changes to the controller
-and ensuring all replicas see a consistent view. Returns Agda@true if the
-freeze operation succeeds. Fails with an error if the object does not exist
-or the controller is unreachable.
+and ensuring all replicas see a consistent view.
+
+Returns:
+- Agda@nothing if the object has no controller assigned (cannot freeze)
+- Agda@just true if the freeze operation succeeds and replicas are synchronized
+- Agda@just false if the object does not exist or the controller is unreachable
 
 After freeze completes, all replicas are synchronized. Subsequent fetch
 operations on other machines will naturally create new replicas that may
@@ -1327,11 +1301,6 @@ Returns Agda@true if the constraint is consistent with the current constraint
 store, Agda@false if posting the constraint would lead to immediate failure.
 Constraint posting triggers propagation to narrow the variable domains.
 
-Examples:
-- `post (Leq x y)` constrains variable x to be less than or equal to variable y
-- `post (ValGt x v)` constrains variable x to be greater than value v
-- `post (AllDiff [x, y, z])` ensures all three variables take distinct values
-
 #### Agda@label
 
 ```text
@@ -1342,5 +1311,4 @@ Selects a value from the variable's current domain using call-time choice—the
 value is chosen immediately when Agda@label executes. This is the search step in
 constraint solving. If subsequent constraint propagation fails, transaction
 rollback (Agda@abortTx) backtracks to explore alternative values. Returns the
-selected value, or fails immediately if the domain is empty. This is the search
-step in constraint solving.
+selected value, or fails immediately if the domain is empty.
