@@ -1,0 +1,14 @@
+[package]
+name = "avm-examples"
+description = "Anoma Virtual Machine — example programs and integration tests"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+avm-core = { path = "../avm-core" }
+thiserror.workspace = true

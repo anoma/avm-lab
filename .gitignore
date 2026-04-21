@@ -18,6 +18,9 @@ inspiration/
 *.exe
 *.bin
 
+# Rust / Cargo
+avm/target/
+
 # Python / uv
 .venv/
 __pycache__/

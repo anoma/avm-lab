@@ -1,0 +1,17 @@
+[book]
+title = "AVM — Anoma Virtual Machine"
+authors = ["Anoma Research"]
+language = "en"
+multilingual = false
+src = "src"
+
+[build]
+build-dir = "build"
+
+[output.html]
+git-repository-url = "https://github.com/anoma/avm-lab"
+edit-url-template = "https://github.com/anoma/avm-lab/edit/main/avm/avm-book/src/{path}"
+additional-js = ["mermaid-init.js"]
+
+[output.html.playground]
+runnable = false

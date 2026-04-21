@@ -1,6 +1,10 @@
 default:
     @just --list
 
+# Delegate to avm justfile
+avm *ARGS:
+    just -f avm/justfile {{ ARGS }}
+
 specs-serve:
     #!/usr/bin/env bash
     cd specs
