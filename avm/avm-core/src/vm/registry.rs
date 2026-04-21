@@ -10,7 +10,11 @@ use crate::types::Val;
 use rustc_hash::FxHashMap;
 
 /// A behavior factory: given an input message, produces the program tree.
-pub type BehaviorFn = Box<dyn Fn(Val) -> ITree<Instruction, Val>>;
+///
+/// The `Send` bound allows behavior registries to be moved across thread
+/// boundaries (e.g. into a dedicated interpreter thread), while concrete
+/// behaviors implemented as plain `fn` items satisfy `Send` naturally.
+pub type BehaviorFn = Box<dyn Fn(Val) -> ITree<Instruction, Val> + Send>;
 
 /// A structured registry of named object behaviors.
 ///

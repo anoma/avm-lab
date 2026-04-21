@@ -9,10 +9,13 @@ use super::{Continuation, ITree};
 ///
 /// Runs `tree` to completion, then feeds its result into `f` to get the
 /// next computation. This is the fundamental sequencing combinator.
-pub fn bind<E, A, B>(tree: ITree<E, A>, f: impl FnOnce(A) -> ITree<E, B> + 'static) -> ITree<E, B>
+pub fn bind<E, A, B>(
+    tree: ITree<E, A>,
+    f: impl FnOnce(A) -> ITree<E, B> + Send + 'static,
+) -> ITree<E, B>
 where
     E: 'static,
-    A: 'static,
+    A: 'static + Send,
     B: 'static,
 {
     match tree {
@@ -26,10 +29,10 @@ where
 }
 
 /// Functor map: transform the result of a computation.
-pub fn map<E, A, B>(tree: ITree<E, A>, f: impl FnOnce(A) -> B + 'static) -> ITree<E, B>
+pub fn map<E, A, B>(tree: ITree<E, A>, f: impl FnOnce(A) -> B + Send + 'static) -> ITree<E, B>
 where
     E: 'static,
-    A: 'static,
+    A: 'static + Send,
     B: 'static,
 {
     bind(tree, move |a| ITree::Ret(f(a)))

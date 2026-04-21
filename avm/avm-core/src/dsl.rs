@@ -9,7 +9,7 @@ use crate::types::{ControllerId, ObjectId, Val};
 /// (the user controls that via the block's logic).
 pub fn with_transaction<F>(controller: Option<ControllerId>, body: F) -> ITree<Instruction, Val>
 where
-    F: FnOnce(Val) -> ITree<Instruction, Val> + 'static,
+    F: FnOnce(Val) -> ITree<Instruction, Val> + Send + 'static,
 {
     crate::avm_do! {
         let tx_ref <- trigger(instruction::begin_tx(controller));

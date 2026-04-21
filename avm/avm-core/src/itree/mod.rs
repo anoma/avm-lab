@@ -44,7 +44,11 @@ impl<E, A> std::fmt::Debug for ITree<E, A> {
 }
 
 /// A boxed continuation: given a response value, produces the next tree.
-pub type Continuation<E, A> = Box<dyn FnOnce(Val) -> ITree<E, A>>;
+///
+/// The `Send` bound allows interaction trees (and the programs they encode) to
+/// be moved across OS-thread boundaries. All concrete continuations built with
+/// `avm_do!` or `trigger` satisfy this bound naturally.
+pub type Continuation<E, A> = Box<dyn FnOnce(Val) -> ITree<E, A> + Send>;
 
 /// Lift an event into a one-step interaction tree.
 ///
