@@ -8,6 +8,7 @@ use avm_core::avm_do;
 use avm_core::instruction::{self, Instruction};
 use avm_core::interpreter::{interpret, Success};
 use avm_core::itree::{ret, trigger, ITree};
+use avm_core::transport::LocalOnlyTransport;
 use avm_core::types::{MachineId, Val};
 use avm_core::vm::{BehaviorRegistry, State};
 
@@ -125,7 +126,7 @@ pub fn run_battleship() -> Result<Success<Val>, avm_core::error::AVMError> {
     let mut state = State::new(MachineId("local".into()));
     let registry = battleship_registry();
     let program = game_setup();
-    interpret(program, &mut state, &registry)
+    interpret(program, &mut state, &registry, &LocalOnlyTransport)
 }
 
 #[cfg(test)]

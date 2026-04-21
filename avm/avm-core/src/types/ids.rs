@@ -8,18 +8,22 @@ use std::fmt;
 
 /// Unique identifier for an object in the AVM.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ObjectId(pub u64);
 
 /// Identifier for a physical machine in the distributed AVM.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MachineId(pub String);
 
 /// Identifier for a logical controller (transaction ordering authority).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ControllerId(pub String);
 
 /// Identifier for a transaction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TxId(pub u64);
 
 impl fmt::Display for ObjectId {
@@ -59,6 +63,15 @@ impl FreshIdGen {
         Self {
             object_counter: 0,
             tx_counter: 0,
+        }
+    }
+
+    /// Create a generator with a node prefix in bits [63:48].
+    /// Each node gets 2^48 unique IDs.
+    pub fn with_prefix(node_prefix: u16) -> Self {
+        Self {
+            object_counter: u64::from(node_prefix) << 48,
+            tx_counter: u64::from(node_prefix) << 48,
         }
     }
 
@@ -131,5 +144,23 @@ mod tests {
         set.insert(ObjectId(1));
         assert!(set.contains(&ObjectId(1)));
         assert!(!set.contains(&ObjectId(2)));
+    }
+
+    #[test]
+    fn fresh_id_gen_with_prefix() {
+        let mut gen = FreshIdGen::with_prefix(1);
+        let id = gen.next_object_id();
+        assert_eq!(id, ObjectId(1 << 48));
+        let id2 = gen.next_object_id();
+        assert_eq!(id2, ObjectId((1 << 48) + 1));
+    }
+
+    #[test]
+    fn different_prefixes_dont_collide() {
+        let mut gen_a = FreshIdGen::with_prefix(1);
+        let mut gen_b = FreshIdGen::with_prefix(2);
+        let a = gen_a.next_object_id();
+        let b = gen_b.next_object_id();
+        assert_ne!(a, b);
     }
 }

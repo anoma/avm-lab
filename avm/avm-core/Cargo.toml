@@ -12,3 +12,8 @@ workspace = true
 [dependencies]
 thiserror.workspace = true
 rustc-hash.workspace = true
+serde = { workspace = true, optional = true }
+
+[features]
+default = []
+serde = ["dep:serde"]

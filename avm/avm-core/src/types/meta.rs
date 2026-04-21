@@ -10,6 +10,7 @@ use super::{ControllerId, Input, MachineId, ObjectId, TxId, Val};
 /// Every object carries immutable provenance (creating controller) and mutable
 /// ownership (current controller). The machine field tracks physical location.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ObjectMeta {
     pub object_id: ObjectId,
     pub machine: MachineId,

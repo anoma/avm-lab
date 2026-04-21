@@ -20,6 +20,7 @@ use crate::error::AVMError;
 use crate::instruction::Instruction;
 use crate::itree::ITree;
 use crate::trace::{LogEntry, Trace};
+use crate::transport::Transport;
 use crate::types::Val;
 use crate::vm::{BehaviorRegistry, State};
 
@@ -46,11 +47,13 @@ pub type AVMResult<A> = Result<Success<A>, AVMError>;
 /// eliminated in-place without recursion.
 ///
 /// The `registry` provides named behavior resolution for `call` instructions.
+/// The `transport` handles calls whose target lives on a different machine.
 /// State is mutated in-place — no clone is performed.
 pub fn interpret(
     program: ITree<Instruction, Val>,
     state: &mut State,
     registry: &BehaviorRegistry,
+    transport: &dyn Transport,
 ) -> AVMResult<Val> {
     let mut trace = Trace::new();
     let mut current = program;
@@ -64,7 +67,8 @@ pub fn interpret(
                 current = *next;
             }
             ITree::Vis(instruction, cont) => {
-                let (result_val, new_entries) = execute_instruction(instruction, state, registry)?;
+                let (result_val, new_entries) =
+                    execute_instruction(instruction, state, registry, transport)?;
                 trace.extend(new_entries);
                 current = cont(result_val);
             }
@@ -77,6 +81,7 @@ fn execute_instruction(
     instruction: Instruction,
     state: &mut State,
     registry: &BehaviorRegistry,
+    transport: &dyn Transport,
 ) -> Result<(Val, Trace), AVMError> {
     // obj::execute can emit multiple entries (callee trace + its own), so it
     // returns Vec<LogEntry> directly.  All other (leaf) handlers return at
@@ -89,7 +94,7 @@ fn execute_instruction(
     }
 
     match instruction {
-        Instruction::Obj(instr) => obj::execute(instr, state, registry),
+        Instruction::Obj(instr) => obj::execute(instr, state, registry, transport),
         Instruction::Introspect(instr) => leaf!(introspect::execute(instr, state)),
         Instruction::Reflect(instr) => leaf!(reflect::execute(instr, state)),
         Instruction::Reify(instr) => leaf!(reify::execute(instr, state)),

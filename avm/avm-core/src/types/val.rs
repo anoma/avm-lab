@@ -11,6 +11,7 @@ use std::fmt;
 /// state, pure function arguments and results. The variants cover the primitive
 /// types needed by the specification.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Val {
     /// Natural number (non-negative integer).
     Nat(u64),

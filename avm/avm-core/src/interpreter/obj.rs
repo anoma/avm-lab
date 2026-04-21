@@ -5,6 +5,7 @@ use crate::instruction::ObjInstruction;
 use crate::interpreter::helpers::{log_event, with_call_context};
 use crate::interpreter::interpret;
 use crate::trace::{EventType, Trace};
+use crate::transport::Transport;
 use crate::types::{ObjectId, Val};
 use crate::vm::state::CreateEntry;
 use crate::vm::{BehaviorRegistry, State};
@@ -13,6 +14,7 @@ pub fn execute(
     instr: ObjInstruction,
     state: &mut State,
     registry: &BehaviorRegistry,
+    transport: &dyn Transport,
 ) -> Result<(Val, Trace), AVMError> {
     match instr {
         ObjInstruction::Create {
@@ -20,7 +22,9 @@ pub fn execute(
             controller,
         } => execute_create(behavior_name, controller, state),
         ObjInstruction::Destroy(id) => execute_destroy(id, state),
-        ObjInstruction::Call { target, input } => execute_call(target, input, state, registry),
+        ObjInstruction::Call { target, input } => {
+            execute_call(target, input, state, registry, transport)
+        }
         ObjInstruction::Receive => execute_receive(state),
     }
 }
@@ -94,8 +98,29 @@ fn execute_call(
     input: Val,
     state: &mut State,
     registry: &BehaviorRegistry,
+    transport: &dyn Transport,
 ) -> Result<(Val, Trace), AVMError> {
-    // Look up the target's behavior
+    // Check if target is on a different machine
+    let target_machine = state.store.metadata.get(&target).map(|m| m.machine.clone());
+
+    if let Some(ref machine) = target_machine {
+        if *machine != state.machine_id {
+            // Remote call path
+            let caller_id = state.self_id;
+            let result = transport.remote_call(machine, target, input.clone(), caller_id)?;
+            let trace = vec![log_event(
+                state,
+                EventType::ObjectCalled {
+                    id: target,
+                    input,
+                    output: Some(result.clone()),
+                },
+            )];
+            return Ok((Val::just(result), trace));
+        }
+    }
+
+    // Local call path: look up the target's behavior
     let behavior_name = state
         .store
         .objects
@@ -104,7 +129,7 @@ fn execute_call(
         .or_else(|| state.creates.get(&target).map(|c| c.behavior_name.clone()))
         .ok_or(ObjError::NotFound(target))?;
 
-    let target_machine = state
+    let local_machine = state
         .store
         .metadata
         .get(&target)
@@ -126,8 +151,8 @@ fn execute_call(
         target,
         input.clone(),
         caller_id,
-        target_machine,
-        |callee_state| interpret(callee_program, callee_state, registry),
+        local_machine,
+        |callee_state| interpret(callee_program, callee_state, registry, transport),
     );
 
     let mut trace = Vec::new();

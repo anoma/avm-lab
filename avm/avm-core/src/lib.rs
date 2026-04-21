@@ -25,5 +25,6 @@ pub mod itree;
 pub mod store;
 pub mod tape;
 pub mod trace;
+pub mod transport;
 pub mod types;
 pub mod vm;
