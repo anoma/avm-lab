@@ -63,3 +63,8 @@ cargo test -p avm-examples ping_pong
 # Open the API documentation
 cargo doc --open -p avm-core
 ```
+
+## Related
+
+- [Formal Agda Specification](https://anoma.github.io/avm-lab/) — the
+  type-checked specification that this Rust implementation mirrors

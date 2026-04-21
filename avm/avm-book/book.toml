@@ -7,6 +7,8 @@ src = "src"
 
 [build]
 build-dir = "build"
+# In CI, the built book is copied into the MkDocs site at /rust/
+# so both coexist under one GitHub Pages deployment.
 
 [output.html]
 git-repository-url = "https://github.com/anoma/avm-lab"

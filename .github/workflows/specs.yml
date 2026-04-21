@@ -66,13 +66,28 @@ jobs:
           cp -r assets/javascripts docs/
           cp -r assets/assets docs/
 
-      - name: Build documentation
+      - name: Build MkDocs documentation
         working-directory: specs
         env:
           SITE_URL: https://anoma.github.io/avm-lab/
           SITE_DIR: build/site
         run: |
           uv run agda-mkdocs build --config mkdocs.yml
+
+      # Build the Rust mdbook and nest it under /rust/ in the MkDocs site
+      - name: Setup mdbook
+        uses: peaceiris/actions-mdbook@v2
+        with:
+          mdbook-version: latest
+
+      - name: Build mdbook
+        working-directory: avm/avm-book
+        run: mdbook build
+
+      - name: Merge mdbook into MkDocs site
+        run: |
+          mkdir -p specs/build/site/rust
+          cp -r avm/avm-book/build/* specs/build/site/rust/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
