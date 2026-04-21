@@ -23,6 +23,7 @@ pub mod instruction;
 pub mod interpreter;
 pub mod itree;
 pub mod store;
+pub mod tape;
 pub mod trace;
 pub mod types;
 pub mod vm;
