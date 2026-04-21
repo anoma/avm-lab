@@ -2,7 +2,6 @@
 title = "AVM — Anoma Virtual Machine"
 authors = ["Anoma Research"]
 language = "en"
-multilingual = false
 src = "src"
 
 [build]
