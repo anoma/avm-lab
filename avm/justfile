@@ -35,3 +35,15 @@ doc:
 
 # Run all checks (fmt + lint + test)
 check: fmt lint test
+
+# Build the avm-node binary
+build-node:
+    cargo build -p avm-node
+
+# Run distributed demo — Terminal 1 (start this first)
+demo-beta:
+    RUST_LOG=info cargo run -p avm-node -- --name beta --port 9002 --peer alpha:9001 --demo
+
+# Run distributed demo — Terminal 2
+demo-alpha:
+    RUST_LOG=info cargo run -p avm-node -- --name alpha --port 9001 --peer beta:9002 --demo --rounds 3
