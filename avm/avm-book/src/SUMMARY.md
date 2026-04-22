@@ -13,6 +13,7 @@
 
 - [PingPong](tutorials/ping_pong.md)
 - [Battleship](tutorials/battleship.md)
+- [Distributed PingPong](tutorials/distributed.md)
 
 # Reference
 

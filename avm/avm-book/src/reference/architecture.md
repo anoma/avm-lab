@@ -8,13 +8,13 @@ transactions achieve snapshot isolation.
 
 | Crate | Purpose |
 |---|---|
-| `avm-core` | Types (`Val`, `ObjectId`, `TxId`), all instruction enums, the interpreter, error hierarchy, and tracing infrastructure |
-| `avm-examples` | PingPong and Battleship end-to-end demonstrations; useful as integration tests and as readable usage examples |
+| `avm-core` | Types, instructions, interpreter, errors, tracing, Tape IR, Transport trait |
+| `avm-node` | Distributed runtime: TCP transport, location directory, CLI binary |
+| `avm-examples` | PingPong and Battleship demonstrations (single-process) |
 | `avm-book` | This documentation (built with [mdBook](https://rust-lang.github.io/mdBook/)) |
 
-The crates form a strict dependency chain: `avm-examples` depends on
-`avm-core`; `avm-book` is documentation only and has no code dependency on
-either.
+`avm-node` depends on `avm-core` (with the `serde` feature enabled).
+`avm-examples` depends on `avm-core`. `avm-book` has no code dependency.
 
 ## Interpreter execution model
 
@@ -65,6 +65,39 @@ Transactions provide serializable snapshot isolation using an overlay approach:
 
 This means `commit_tx` is the sole point where the store can change, making it
 straightforward to reason about isolation.
+
+## Distributed runtime (avm-node)
+
+The `avm-node` crate provides a networked runtime where objects on different
+machines communicate transparently via TCP.
+
+<pre class="mermaid">
+graph TD
+    subgraph Node
+        CLI[CLI: clap] --> NodeStruct[Node]
+        NodeStruct --> Worker[Worker Thread]
+        NodeStruct --> TCP[TCP Listener]
+        Worker -->|interpret| Interpreter
+        Interpreter -->|local call| Store[(Store)]
+        Interpreter -->|remote call| Transport[TcpTransport]
+        Transport -->|send Call| TCP
+        TCP -->|receive CallResponse| Transport
+    end
+</pre>
+
+Key components:
+
+- **Transport trait** (`avm-core`): pluggable interface for remote calls.
+  `LocalOnlyTransport` (default) returns `Unreachable`; `TcpTransport`
+  serializes calls over TCP.
+- **LocationDirectory**: `ObjectId → MachineId` map updated by
+  `CreateNotify` broadcasts. Each node knows where every object lives.
+- **PendingMap**: bridges the sync `Transport::remote_call()` (running on
+  a worker thread) to the async TCP response via oneshot channels.
+- **Node-prefixed IDs**: `FreshIdGen::with_prefix(u16)` puts a 16-bit
+  node identity in bits [63:48] of each `ObjectId`, preventing collisions.
+- **Wire protocol**: length-prefixed JSON over TCP. Message types: `Call`,
+  `CallResponse`, `CreateNotify`, `DestroyNotify`, `Ping`, `Pong`.
 
 ## Formal specification references
 

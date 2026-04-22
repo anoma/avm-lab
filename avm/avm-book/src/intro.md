@@ -22,11 +22,17 @@ production-quality interpreter with full observability.
   (objects, transactions, pure functions, distribution, constraints), each
   adding capabilities on top of the previous.
 
+- **Distributed**: objects can run on different machines connected via TCP.
+  The `Transport` trait makes remote calls transparent — a `call` to an
+  object on another node serializes the message, sends it over the network,
+  and returns the response.
+
 ## Crate structure
 
 | Crate | Purpose |
 |---|---|
-| `avm-core` | Types, instructions, interpreter, errors, tracing |
+| `avm-core` | Types, instructions, interpreter, errors, tracing, Tape IR |
+| `avm-node` | Distributed runtime: TCP transport, location directory, CLI |
 | `avm-examples` | PingPong and Battleship demonstrations |
 | `avm-book` | This documentation |
 
@@ -51,6 +57,25 @@ graph TD
     Registry -->|create program| Program
 </pre>
 
+## Distributed architecture
+
+Multiple `avm-node` processes form a cluster. Each node owns local objects
+and routes remote calls over TCP via the `Transport` trait.
+
+<pre class="mermaid">
+graph LR
+    subgraph alpha [Node alpha:9001]
+        PingObj[ping object]
+        StoreA[(Store)]
+    end
+    subgraph beta [Node beta:9002]
+        PongObj[pong object]
+        StoreB[(Store)]
+    end
+    PingObj -->|call via TCP| PongObj
+    PongObj -->|response via TCP| PingObj
+</pre>
+
 ## Quick start
 
 ```bash
@@ -59,6 +84,12 @@ cd avm && cargo test --all
 
 # Run just the PingPong example tests
 cargo test -p avm-examples ping_pong
+
+# Distributed demo (two terminals):
+# Terminal 1:
+just avm demo-beta
+# Terminal 2:
+just avm demo-alpha
 
 # Open the API documentation
 cargo doc --open -p avm-core
