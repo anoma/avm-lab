@@ -19,8 +19,13 @@ avm-examples = { path = "../avm-examples" }
 serde.workspace = true
 serde_json.workspace = true
 tokio = { workspace = true, features = ["full"] }
+tokio-stream.workspace = true
 clap = { workspace = true, features = ["derive"] }
+axum.workspace = true
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 thiserror.workspace = true
 rustc-hash.workspace = true
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }

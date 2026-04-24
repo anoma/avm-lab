@@ -8,6 +8,7 @@ use crate::types::{ControllerId, Input, MachineId, ObjectId, Output, TxId};
 
 /// The type of event that occurred during execution.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum EventType {
     ObjectCreated {
         id: ObjectId,
@@ -55,6 +56,7 @@ pub enum EventType {
 
 /// A single log entry in the execution trace.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LogEntry {
     pub timestamp: u64,
     pub event_type: EventType,

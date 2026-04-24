@@ -23,6 +23,7 @@ mod directory;
 mod node;
 mod protocol;
 mod remote_call;
+mod sse;
 mod transport;
 
 use node::{Node, NodeConfig};
@@ -70,6 +71,11 @@ struct Args {
     /// Number of ping-pong rounds for the demo (only used by alpha).
     #[arg(long, default_value_t = 3)]
     rounds: u64,
+
+    /// TCP port for the SSE HTTP server (`GET /events`, `GET /health`).
+    /// Defaults to 8080. Set to 0 to disable the SSE server.
+    #[arg(long, default_value_t = 8080)]
+    sse_port: u16,
 }
 
 #[tokio::main]
@@ -86,11 +92,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Assign a unique node prefix from the port number (lower 16 bits).
     let node_prefix = args.port;
 
+    let sse_port = if args.sse_port == 0 {
+        None
+    } else {
+        Some(args.sse_port)
+    };
+
     let config = NodeConfig {
         name: args.name.clone(),
         port: args.port,
         peers: args.peers.clone(),
         node_prefix,
+        sse_port,
     };
 
     if args.demo {

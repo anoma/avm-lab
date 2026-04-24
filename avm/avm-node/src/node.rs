@@ -39,6 +39,7 @@ use tracing::{debug, error, info, warn};
 use crate::directory::LocationDirectory;
 use crate::protocol::{read_frame, write_frame, NodeMessage};
 use crate::remote_call::{complete_pending, new_pending_map, PendingMap};
+use crate::sse::EventBroadcaster;
 use crate::transport::{OutboundMsg, TcpTransport};
 use crate::NodeError;
 
@@ -219,6 +220,8 @@ pub struct NodeConfig {
     pub peers: Vec<String>,
     /// Prefix for ID generation (bits [63:48] of every `ObjectId`).
     pub node_prefix: u16,
+    /// TCP port for the SSE HTTP server. `None` disables the server.
+    pub sse_port: Option<u16>,
 }
 
 /// A node before it is started.
@@ -303,6 +306,26 @@ impl Node {
         let pw_listener = Arc::clone(&peer_writers);
         tokio::spawn(run_listener(listener, inbound_tx3, pw_listener));
 
+        // Create the SSE event broadcaster (capacity: 256 queued messages).
+        let broadcaster = Arc::new(EventBroadcaster::new(256));
+
+        // Optionally spawn the SSE HTTP server.
+        if let Some(sse_port) = self.config.sse_port {
+            let router = crate::sse::sse_router_arc(Arc::clone(&broadcaster));
+            let sse_addr: SocketAddr = format!("0.0.0.0:{sse_port}")
+                .parse()
+                .expect("valid SSE socket address");
+            info!(port = sse_port, "SSE server listening");
+            tokio::spawn(async move {
+                let listener = tokio::net::TcpListener::bind(sse_addr)
+                    .await
+                    .expect("SSE listener bind failed");
+                axum::serve(listener, router)
+                    .await
+                    .expect("SSE server error");
+            });
+        }
+
         Ok(RunningNode {
             name: self.config.name,
             port: self.config.port,
@@ -313,6 +336,7 @@ impl Node {
             request_counter,
             outbound_tx,
             peer_writers,
+            broadcaster,
         })
     }
 }
@@ -334,6 +358,8 @@ pub struct RunningNode {
     pub request_counter: Arc<AtomicU64>,
     pub outbound_tx: mpsc::UnboundedSender<OutboundMsg>,
     pub peer_writers: Arc<Mutex<HashMap<String, mpsc::UnboundedSender<NodeMessage>>>>,
+    /// Broadcaster for real-time SSE trace events.
+    pub broadcaster: Arc<EventBroadcaster>,
 }
 
 impl RunningNode {
@@ -361,6 +387,10 @@ impl RunningNode {
     ///
     /// Accepts a factory closure (which is `Send`) that produces the `ITree`
     /// on the interpreter thread, avoiding the `!Send` constraint on `ITree`.
+    ///
+    /// After the program completes, each [`avm_core::trace::LogEntry`] in the
+    /// resulting trace is serialised to JSON and published to all active SSE
+    /// subscribers via the [`EventBroadcaster`].
     pub async fn run_program(
         &self,
         factory: impl FnOnce() -> ITree<Instruction, Val> + Send + 'static,
@@ -370,6 +400,14 @@ impl RunningNode {
             .run_program(factory)
             .await
             .map_err(NodeError::Interpret)?;
+
+        // Broadcast each trace entry to SSE subscribers.
+        for entry in &trace {
+            if let Ok(json) = serde_json::to_string(entry) {
+                self.broadcaster.publish(json);
+            }
+        }
+
         Ok(avm_core::interpreter::Success { value, trace })
     }
 
